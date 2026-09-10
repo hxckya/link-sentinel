@@ -20,6 +20,10 @@ class LinkSentinel_Settings {
 			'post_statuses'    => array( 'publish' ),
 			'scan_comments'    => false,
 			'scan_menus'       => true,
+			'scan_widgets'     => true,
+			'scan_terms'       => true,
+			'notify_email'     => true,
+			'notify_to'        => '',
 			'schedule'         => 'weekly', // never | daily | weekly
 			'recheck_hours'    => 72,       // a link checked more recently than this is not re-fetched
 			'timeout'          => 10,
@@ -62,6 +66,11 @@ class LinkSentinel_Settings {
 
 		$out['scan_comments']     = ! empty( $in['scan_comments'] );
 		$out['scan_menus']        = ! empty( $in['scan_menus'] );
+		$out['scan_widgets']      = ! empty( $in['scan_widgets'] );
+		$out['scan_terms']        = ! empty( $in['scan_terms'] );
+		$out['notify_email']      = ! empty( $in['notify_email'] );
+		$notify_to                = isset( $in['notify_to'] ) ? sanitize_email( $in['notify_to'] ) : '';
+		$out['notify_to']         = is_email( $notify_to ) ? $notify_to : '';
 		$out['blocked_is_broken'] = ! empty( $in['blocked_is_broken'] );
 
 		$schedule        = isset( $in['schedule'] ) ? $in['schedule'] : $d['schedule'];

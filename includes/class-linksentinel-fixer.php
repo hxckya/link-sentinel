@@ -106,6 +106,14 @@ class LinkSentinel_Fixer {
 			$c = get_comment( (int) $o->source_id );
 			return $c ? $c->comment_content : null;
 		}
+		if ( 'widget' === $o->source_type ) {
+			$all = get_option( 'widget_block', array() );
+			return isset( $all[ (int) $o->source_id ]['content'] ) ? (string) $all[ (int) $o->source_id ]['content'] : null;
+		}
+		if ( 'term' === $o->source_type ) {
+			$term = get_term( (int) $o->source_id );
+			return $term && ! is_wp_error( $term ) ? (string) $term->description : null;
+		}
 		return null;
 	}
 
@@ -116,6 +124,22 @@ class LinkSentinel_Fixer {
 		}
 		if ( 'comment' === $o->source_type ) {
 			return (bool) wp_update_comment( array( 'comment_ID' => (int) $o->source_id, 'comment_content' => $content ) );
+		}
+		if ( 'widget' === $o->source_type ) {
+			$all = get_option( 'widget_block', array() );
+			if ( ! isset( $all[ (int) $o->source_id ] ) ) {
+				return false;
+			}
+			$all[ (int) $o->source_id ]['content'] = $content;
+			return (bool) update_option( 'widget_block', $all );
+		}
+		if ( 'term' === $o->source_type ) {
+			$term = get_term( (int) $o->source_id );
+			if ( ! $term || is_wp_error( $term ) ) {
+				return false;
+			}
+			$r = wp_update_term( $term->term_id, $term->taxonomy, array( 'description' => $content ) );
+			return ! is_wp_error( $r );
 		}
 		return false;
 	}

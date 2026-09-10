@@ -50,6 +50,8 @@ class LinkSentinel_Admin {
 					'failed'     => __( 'That did not work:', 'link-sentinel' ),
 					'stopping'   => __( 'Stopping…', 'link-sentinel' ),
 					'done'       => __( 'Scan finished. Reloading…', 'link-sentinel' ),
+					'cancel'     => __( 'Cancel', 'link-sentinel' ),
+					'save'       => __( 'Save', 'link-sentinel' ),
 				),
 			)
 		);
@@ -149,6 +151,8 @@ class LinkSentinel_Admin {
 								<?php endforeach; ?>
 								<label><input type="checkbox" name="<?php echo esc_attr( LinkSentinel_Settings::OPTION ); ?>[include_drafts]" value="1" <?php checked( count( (array) $s['post_statuses'] ) > 1 ); ?>> <?php esc_html_e( 'Include drafts, pending, scheduled and private items', 'link-sentinel' ); ?></label><br>
 								<label><input type="checkbox" name="<?php echo esc_attr( LinkSentinel_Settings::OPTION ); ?>[scan_menus]" value="1" <?php checked( ! empty( $s['scan_menus'] ) ); ?>> <?php esc_html_e( 'Custom links in navigation menus', 'link-sentinel' ); ?></label><br>
+								<label><input type="checkbox" name="<?php echo esc_attr( LinkSentinel_Settings::OPTION ); ?>[scan_widgets]" value="1" <?php checked( ! empty( $s['scan_widgets'] ) ); ?>> <?php esc_html_e( 'Block widgets (sidebars, footers)', 'link-sentinel' ); ?></label><br>
+								<label><input type="checkbox" name="<?php echo esc_attr( LinkSentinel_Settings::OPTION ); ?>[scan_terms]" value="1" <?php checked( ! empty( $s['scan_terms'] ) ); ?>> <?php esc_html_e( 'Category, tag and taxonomy descriptions', 'link-sentinel' ); ?></label><br>
 								<label><input type="checkbox" name="<?php echo esc_attr( LinkSentinel_Settings::OPTION ); ?>[scan_comments]" value="1" <?php checked( ! empty( $s['scan_comments'] ) ); ?>> <?php esc_html_e( 'Approved comments', 'link-sentinel' ); ?></label>
 							</fieldset>
 						</td>
@@ -162,6 +166,14 @@ class LinkSentinel_Admin {
 								<option value="never" <?php selected( $s['schedule'], 'never' ); ?>><?php esc_html_e( 'Never (manual only)', 'link-sentinel' ); ?></option>
 							</select>
 							<p class="description"><?php esc_html_e( 'Runs through WP-Cron, in small steps, while your site receives visits.', 'link-sentinel' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Email report', 'link-sentinel' ); ?></th>
+						<td>
+							<label><input type="checkbox" name="<?php echo esc_attr( LinkSentinel_Settings::OPTION ); ?>[notify_email]" value="1" <?php checked( ! empty( $s['notify_email'] ) ); ?>> <?php esc_html_e( 'Email me when a scheduled scan finds broken links', 'link-sentinel' ); ?></label>
+							<p><input type="email" name="<?php echo esc_attr( LinkSentinel_Settings::OPTION ); ?>[notify_to]" value="<?php echo esc_attr( $s['notify_to'] ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>"></p>
+							<p class="description"><?php esc_html_e( 'Leave empty to use the site admin email. Manual scans never send email; one message per scheduled scan, and only when something is broken.', 'link-sentinel' ); ?></p>
 						</td>
 					</tr>
 					<tr>

@@ -93,12 +93,13 @@
 		var body = {};
 		var path = '/links/' + id + '/' + action;
 		if ( action === 'url' ) {
-			var current = b.getAttribute( 'data-prefill' ) || b.getAttribute( 'data-url' ) || '';
-			var next = window.prompt( i18n.newUrl, current );
-			if ( ! next || next === b.getAttribute( 'data-url' ) ) {
-				return;
-			}
-			body = { url: next };
+			askUrl( b.getAttribute( 'data-prefill' ) || b.getAttribute( 'data-url' ) || '', function ( next ) {
+				if ( ! next || next === b.getAttribute( 'data-url' ) ) {
+					return;
+				}
+				run( b, path, { url: next } );
+			} );
+			return;
 		} else if ( action === 'unlink' ) {
 			if ( ! window.confirm( i18n.unlink ) ) {
 				return;
@@ -109,6 +110,10 @@
 		} else if ( action === 'dismiss' ) {
 			body = { dismissed: true };
 		}
+		run( b, path, body );
+	} );
+
+	function run( b, path, body ) {
 		var row = b.closest( 'tr' );
 		if ( row ) {
 			row.style.opacity = '0.5';
@@ -121,5 +126,37 @@
 			}
 			window.alert( i18n.failed + ' ' + ( err && err.message ? err.message : '' ) );
 		} );
-	} );
+	}
+
+	// A small dialog instead of window.prompt: the URL can be long, and the
+	// user should see it whole before saving.
+	function askUrl( current, done ) {
+		var dlg = document.getElementById( 'lsn-url-dialog' );
+		if ( ! dlg ) {
+			dlg = document.createElement( 'dialog' );
+			dlg.id = 'lsn-url-dialog';
+			dlg.className = 'lsn-dialog';
+			dlg.innerHTML = '<form method="dialog"><label for="lsn-url-input"></label><input type="url" id="lsn-url-input" class="large-text code" required><p class="lsn-dialog-actions"><button type="button" class="button" value="cancel"></button> <button type="submit" class="button button-primary" value="ok"></button></p></form>';
+			document.body.appendChild( dlg );
+			dlg.querySelector( 'label' ).textContent = i18n.newUrl;
+			dlg.querySelector( 'button[value="cancel"]' ).textContent = i18n.cancel;
+			dlg.querySelector( 'button[value="ok"]' ).textContent = i18n.save;
+			dlg.querySelector( 'button[value="cancel"]' ).addEventListener( 'click', function () { dlg.close( 'cancel' ); } );
+		}
+		var input = dlg.querySelector( 'input' );
+		input.value = current;
+		dlg.onclose = function () {
+			if ( dlg.returnValue === 'ok' ) {
+				done( input.value.trim() );
+			}
+		};
+		if ( typeof dlg.showModal === 'function' ) {
+			dlg.showModal();
+			input.focus();
+			input.select();
+		} else {
+			var next = window.prompt( i18n.newUrl, current );
+			done( next ? next.trim() : '' );
+		}
+	}
 }() );

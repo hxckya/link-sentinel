@@ -28,3 +28,8 @@
 .column-last_checked { width: 10%; }
 .lsn-widget-counts a { text-decoration: none; }
 .lsn-widget-counts strong { font-size: 18px; }
+.lsn-dialog { border: 1px solid #c3c4c7; border-radius: 4px; padding: 20px 24px; width: min(720px, 92vw); box-shadow: 0 4px 24px rgba(0,0,0,.2); }
+.lsn-dialog::backdrop { background: rgba(0,0,0,.4); }
+.lsn-dialog label { display: block; margin-bottom: 8px; font-weight: 600; }
+.lsn-dialog input { width: 100%; }
+.lsn-dialog-actions { margin: 16px 0 0; text-align: right; }

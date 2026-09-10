@@ -4,7 +4,7 @@ Tags: broken links, link checker, 404, dead links, seo
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.1.0
+Stable tag: 0.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,6 +25,8 @@ Link Sentinel scans your posts, pages, custom post types, menus and (optionally)
 * **Unlink** — remove the link and keep the text.
 * **Dismiss** — hide what you have decided to leave alone.
 * **Re-check** — one link, or a selection.
+
+**Tells you when it matters.** After a scheduled scan that finds broken links you get one plain email listing them, and nothing when all is well. From the command line, `wp link-sentinel scan` exits non-zero when something is broken, so it fits a cron job or CI.
 
 Every edit goes through the normal WordPress save, so revisions keep the previous version.
 
@@ -55,7 +57,7 @@ A timeout, DNS failure, TLS problem or 5xx. These are often temporary, so a link
 
 = Which content is scanned? =
 
-Post types you select (posts and pages by default), custom links in navigation menus, and approved comments if enabled. Links inside `<a>`, `<img>`, `srcset`, `<iframe>`, `<video>`, `<audio>`, `<source>` and `<embed>` are found.
+Post types you select (posts and pages by default), custom links in navigation menus, block widgets, category/tag/taxonomy descriptions, and approved comments if enabled. Links inside `<a>`, `<img>`, `srcset`, `<iframe>`, `<video>`, `<audio>`, `<source>` and `<embed>` are found.
 
 = Does it send my links anywhere? =
 
@@ -69,6 +71,12 @@ No. Requests go from your server directly to the linked sites, with a user agent
 4. Settings: what to scan, schedule, timeouts, exclusions.
 
 == Changelog ==
+
+= 0.1.1 =
+* Email report after a scheduled scan finds broken links (Settings → Email report).
+* Block widgets and category/tag/taxonomy descriptions are scanned and fixable too.
+* WP-CLI: `wp link-sentinel scan|status|list`.
+* Edit URL opens a dialog instead of a browser prompt.
 
 = 0.1.0 =
 * First release.

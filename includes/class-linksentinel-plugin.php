@@ -58,7 +58,7 @@ class LinkSentinel_Plugin {
 	/** The recurring full scan. */
 	public function scheduled_scan() {
 		if ( ! LinkSentinel_Scanner::is_running() ) {
-			LinkSentinel_Scanner::start( false );
+			LinkSentinel_Scanner::start( false, 'schedule' );
 		}
 		LinkSentinel_Scanner::step( 12 );
 	}

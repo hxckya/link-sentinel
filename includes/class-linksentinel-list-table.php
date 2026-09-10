@@ -215,6 +215,18 @@ class LinkSentinel_List_Table extends WP_List_Table {
 		if ( 'comment' === $o->source_type ) {
 			return '<a href="' . esc_url( admin_url( 'comment.php?action=editcomment&c=' . (int) $o->source_id ) ) . '">' . esc_html__( 'Comment', 'link-sentinel' ) . ' #' . (int) $o->source_id . '</a>' . $anchor;
 		}
+		if ( 'widget' === $o->source_type ) {
+			return '<a href="' . esc_url( admin_url( 'widgets.php' ) ) . '">' . esc_html__( 'Block widget', 'link-sentinel' ) . '</a>' . $anchor . $kind;
+		}
+		if ( 'term' === $o->source_type ) {
+			$term = get_term( (int) $o->source_id );
+			if ( $term && ! is_wp_error( $term ) ) {
+				$tax   = get_taxonomy( $term->taxonomy );
+				$label = $tax ? $tax->labels->singular_name : $term->taxonomy;
+				$edit  = get_edit_term_link( $term->term_id, $term->taxonomy );
+				return ( $edit ? '<a href="' . esc_url( $edit ) . '">' . esc_html( $term->name ) . '</a>' : esc_html( $term->name ) ) . ' <span class="description">' . esc_html( $label ) . '</span>' . $anchor . $kind;
+			}
+		}
 		return esc_html( $o->source_type . ' #' . $o->source_id );
 	}
 

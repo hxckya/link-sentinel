@@ -112,6 +112,57 @@ $c1 = get_post( $pid )->post_content;
 ok( false === strpos( $c1, 'new.example.com' ) && false !== strpos( $c1, '<p>Old and' ) && false !== strpos( $c1, 'Old twice</p>' ) && false !== strpos( $c1, '<a href="https://keep.example.com/">Keep</a>' ), 'unlink: anchors unwrapped, text and other links kept' );
 ok( null === LinkSentinel_DB::link_by_url( 'https://new.example.com/page' ), 'unlink: url row gone' );
 
+// ---- Widgets and terms as sources --------------------------------------------
+$widgets = get_option( 'widget_block', array() );
+$widgets = is_array( $widgets ) ? $widgets : array();
+$widgets[97] = array( 'content' => '<!-- wp:paragraph --><p>See <a href="https://widget.example.com/old">the widget link</a>.</p><!-- /wp:paragraph -->' );
+update_option( 'widget_block', $widgets );
+LinkSentinel_Scanner::recollect( 'widget', 97 );
+$wl = LinkSentinel_DB::link_by_url( 'https://widget.example.com/old' );
+ok( $wl && LinkSentinel_DB::occurrence_count( (int) $wl->id ) >= 1, 'widgets: block widget content is collected' );
+$wo = $wl ? LinkSentinel_DB::occurrences( (int) $wl->id, 5 ) : array();
+ok( $wo && 'widget' === $wo[0]->source_type && 97 === (int) $wo[0]->source_id, 'widgets: occurrence points at the widget instance' );
+$n = $wl ? LinkSentinel_Fixer::replace_url( (int) $wl->id, 'https://widget.example.com/new' ) : 0;
+$after = get_option( 'widget_block' );
+ok( 1 === $n && false !== strpos( $after[97]['content'], 'https://widget.example.com/new' ) && false === strpos( $after[97]['content'], '/old' ), 'widgets: replace_url rewrites the widget option' );
+unset( $after[97] );
+update_option( 'widget_block', $after );
+LinkSentinel_DB::delete_occurrences_for_source( 'widget', 97 );
+if ( $nw = LinkSentinel_DB::link_by_url( 'https://widget.example.com/new' ) ) { LinkSentinel_DB::delete_link( (int) $nw->id ); }
+
+$cat = wp_insert_term( 'LSN test category ' . wp_rand(), 'category', array( 'description' => 'Read <a href="https://term.example.com/gone">the old guide</a> first.' ) );
+$cat_id = is_wp_error( $cat ) ? 0 : (int) $cat['term_id'];
+LinkSentinel_Scanner::recollect( 'term', $cat_id );
+$tl = LinkSentinel_DB::link_by_url( 'https://term.example.com/gone' );
+ok( $tl && LinkSentinel_DB::occurrence_count( (int) $tl->id ) >= 1, 'terms: category description is collected' );
+$u = $tl ? LinkSentinel_Fixer::unlink( (int) $tl->id ) : 0;
+$desc = $cat_id ? get_term( $cat_id )->description : '';
+ok( 1 === $u && false === strpos( $desc, '<a ' ) && false !== strpos( $desc, 'the old guide' ), 'terms: unlink rewrites the description and keeps the text' );
+if ( $cat_id ) { wp_delete_term( $cat_id, 'category' ); }
+
+// ---- Notifier ------------------------------------------------------------------
+$bl_id = LinkSentinel_DB::upsert_link( 'https://notify.example.com/broken-xyz', 0 );
+LinkSentinel_DB::save_result( $bl_id, array( 'status' => 'broken', 'http_code' => 404 ) );
+$captured = null;
+$capture  = function ( $short_circuit, $atts ) use ( &$captured ) { $captured = $atts; return true; };
+add_filter( 'pre_wp_mail', $capture, 10, 2 );
+$prev_settings = get_option( LinkSentinel_Settings::OPTION, array() );
+update_option( LinkSentinel_Settings::OPTION, array_merge( is_array( $prev_settings ) ? $prev_settings : array(), array( 'notify_email' => true, 'notify_to' => 'owner@example.com' ) ) );
+delete_option( LinkSentinel_Notifier::OPTION );
+$fresh_state = array_merge( LinkSentinel_Scanner::state(), array( 'id' => 990001, 'trigger' => 'schedule' ) );
+// Settings are cached per request; poke the cache by re-reading through a new value.
+$ref = new ReflectionProperty( 'LinkSentinel_Settings', 'cache' ); $ref->setAccessible( true ); $ref->setValue( null, null );
+$sent = LinkSentinel_Notifier::maybe_send( $fresh_state );
+ok( true === $sent && $captured && 'owner@example.com' === $captured['to'], 'notifier: scheduled scan with broken links emails the configured address' );
+ok( $captured && false !== strpos( $captured['subject'], 'broken link' ) && false !== strpos( $captured['message'], 'https://notify.example.com/broken-xyz' ), 'notifier: subject counts, body lists the URL' );
+eq( LinkSentinel_Notifier::maybe_send( $fresh_state ), false, 'notifier: the same scan is not reported twice' );
+eq( LinkSentinel_Notifier::maybe_send( array_merge( $fresh_state, array( 'id' => 990002, 'trigger' => 'manual' ) ) ), false, 'notifier: manual scans never email' );
+remove_filter( 'pre_wp_mail', $capture, 10 );
+update_option( LinkSentinel_Settings::OPTION, $prev_settings );
+$ref->setValue( null, null );
+delete_option( LinkSentinel_Notifier::OPTION );
+LinkSentinel_DB::delete_link( $bl_id );
+
 // cleanup
 foreach ( array( $pid, $pid2, $draft_id ) as $id ) {
 	wp_delete_post( $id, true );

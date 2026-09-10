@@ -32,6 +32,7 @@ class LinkSentinel_Scanner {
 				'to_check'   => 0,
 				'checked'    => 0,
 				'force_all'  => false,
+				'trigger'    => 'manual', // manual | schedule
 				'last_error' => '',
 			)
 		);
@@ -43,7 +44,7 @@ class LinkSentinel_Scanner {
 	}
 
 	/** Begin a fresh scan. $force_all re-fetches every URL regardless of recheck interval. */
-	public static function start( $force_all = false ) {
+	public static function start( $force_all = false, $trigger = 'manual' ) {
 		$state = self::state();
 		if ( in_array( $state['phase'], array( 'collect', 'check' ), true ) ) {
 			return $state;
@@ -62,6 +63,7 @@ class LinkSentinel_Scanner {
 				'to_check'   => 0,
 				'checked'    => 0,
 				'force_all'  => (bool) $force_all,
+				'trigger'    => 'schedule' === $trigger ? 'schedule' : 'manual',
 				'last_error' => '',
 			)
 		);
@@ -169,6 +171,24 @@ class LinkSentinel_Scanner {
 			if ( ! empty( $settings['scan_menus'] ) ) {
 				$state['found'] += self::collect_menus( (int) $state['id'] );
 			}
+			$state['stage']  = 'widgets';
+			$state['cursor'] = 0;
+			return $state;
+		}
+
+		if ( 'widgets' === $state['stage'] ) {
+			if ( ! empty( $settings['scan_widgets'] ) ) {
+				$state['found'] += self::collect_widgets( (int) $state['id'] );
+			}
+			$state['stage']  = 'terms';
+			$state['cursor'] = 0;
+			return $state;
+		}
+
+		if ( 'terms' === $state['stage'] ) {
+			if ( ! empty( $settings['scan_terms'] ) ) {
+				$state['found'] += self::collect_terms( (int) $state['id'] );
+			}
 			$state['stage']  = 'comments';
 			$state['cursor'] = 0;
 			return $state;
@@ -247,6 +267,40 @@ class LinkSentinel_Scanner {
 		return $n;
 	}
 
+	/** Block widgets live in one option, one HTML blob per instance. */
+	private static function collect_widgets( $scan_id ) {
+		$n         = 0;
+		$instances = get_option( 'widget_block', array() );
+		if ( ! is_array( $instances ) ) {
+			return 0;
+		}
+		foreach ( $instances as $key => $instance ) {
+			if ( ! is_int( $key ) || empty( $instance['content'] ) ) {
+				continue;
+			}
+			$n += self::store( 'widget', (int) $key, 'content', LinkSentinel_Extractor::extract( $instance['content'], home_url( '/' ) ), $scan_id );
+		}
+		return $n;
+	}
+
+	/** Category, tag and custom taxonomy descriptions. */
+	private static function collect_terms( $scan_id ) {
+		$n     = 0;
+		$taxes = get_taxonomies( array( 'public' => true ), 'names' );
+		$terms = get_terms( array( 'taxonomy' => array_values( $taxes ), 'hide_empty' => false, 'fields' => 'all', 'number' => 2000 ) );
+		if ( is_wp_error( $terms ) ) {
+			return 0;
+		}
+		foreach ( $terms as $term ) {
+			if ( '' === trim( (string) $term->description ) ) {
+				continue;
+			}
+			$link = get_term_link( $term );
+			$n   += self::store( 'term', (int) $term->term_id, 'description', LinkSentinel_Extractor::extract( $term->description, is_wp_error( $link ) ? home_url( '/' ) : $link ), $scan_id );
+		}
+		return $n;
+	}
+
 	/** Persist extracted links for one source, deduplicated per URL. */
 	private static function store( $source_type, $source_id, $field, array $found, $scan_id ) {
 		$rules = LinkSentinel_Settings::exclusions();
@@ -277,6 +331,8 @@ class LinkSentinel_Scanner {
 		if ( ! $links ) {
 			$state['phase']    = 'done';
 			$state['finished'] = time();
+			self::save( $state );
+			LinkSentinel_Notifier::maybe_send( $state );
 			return $state;
 		}
 		$results = LinkSentinel_Checker::check( $links );
@@ -300,6 +356,18 @@ class LinkSentinel_Scanner {
 		}
 		if ( 'menu' === $source_type ) {
 			return self::collect_menus( $scan_id );
+		}
+		if ( 'widget' === $source_type ) {
+			return self::collect_widgets( $scan_id );
+		}
+		if ( 'term' === $source_type ) {
+			$term = get_term( (int) $source_id );
+			if ( ! $term || is_wp_error( $term ) ) {
+				LinkSentinel_DB::delete_occurrences_for_source( 'term', (int) $source_id );
+				return 0;
+			}
+			$link = get_term_link( $term );
+			return self::store( 'term', (int) $term->term_id, 'description', LinkSentinel_Extractor::extract( $term->description, is_wp_error( $link ) ? home_url( '/' ) : $link ), $scan_id );
 		}
 		return 0;
 	}

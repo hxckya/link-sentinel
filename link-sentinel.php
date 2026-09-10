@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name:       Link Sentinel
+ * Plugin Name:       Link Sentinel – Broken Link Checker
  * Plugin URI:        https://github.com/hxckya/link-sentinel
  * Description:       Finds broken links and images and helps you fix them in place. Runs on your own server, no cloud account, and tells bot-blocked sites apart from dead ones.
- * Version:           0.1.0
+ * Version:           0.1.1
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            hxckya
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'LINKSENTINEL_VERSION', '0.1.0' );
+define( 'LINKSENTINEL_VERSION', '0.1.1' );
 define( 'LINKSENTINEL_FILE', __FILE__ );
 define( 'LINKSENTINEL_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LINKSENTINEL_URL', plugin_dir_url( __FILE__ ) );
@@ -28,6 +28,8 @@ require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-extractor.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-checker.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-scanner.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-fixer.php';
+require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-notifier.php';
+require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-cli.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-rest.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-admin.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-plugin.php';
