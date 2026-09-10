@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: PHP lint
+        run: |
+          docker run --rm -v "$PWD":/app -w /app php:7.4-cli sh -c 'for f in $(find . -name "*.php" -not -path "./.docker/*"); do php -l "$f" || exit 1; done'
+      - name: Bring up WordPress
+        run: .docker/up.sh
+      - name: Seed content
+        run: .docker/seed.sh
+      - name: Integration tests
+        run: docker compose -f .docker/docker-compose.yml run --rm -T cli eval-file wp-content/plugins/link-sentinel/tests/run.php
+      - name: Full scan runs to completion
+        run: |
+          docker compose -f .docker/docker-compose.yml run --rm -T cli eval '
+            LinkSentinel_Scanner::start(true);
+            for ($i = 0; $i < 20 && LinkSentinel_Scanner::is_running(); $i++) { LinkSentinel_Scanner::step(15); }
+            $s = LinkSentinel_Scanner::state(); $c = LinkSentinel_DB::counts();
+            printf("phase=%s found=%d broken=%d redirect=%d blocked=%d\n", $s["phase"], $s["found"], $c["broken"], $c["redirect"], $c["blocked"]);
+            if ($s["phase"] !== "done" || $c["broken"] < 2 || $c["redirect"] < 1) { exit(1); }'
+      - name: Plugin Check
+        run: docker compose -f .docker/docker-compose.yml run --rm -T cli plugin install plugin-check --activate && docker compose -f .docker/docker-compose.yml run --rm -T cli plugin check link-sentinel --exclude-checks=plugin_readme --format=table || true

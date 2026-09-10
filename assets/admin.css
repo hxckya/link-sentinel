@@ -1,0 +1,30 @@
+.lsn-panel { background: #fff; border: 1px solid #c3c4c7; box-shadow: 0 1px 1px rgba(0,0,0,.04); padding: 12px 16px; margin: 12px 0 16px; }
+.lsn-panel-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+.lsn-stats { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; }
+.lsn-stat strong { font-size: 20px; margin-right: 4px; font-weight: 600; }
+.lsn-broken strong { color: #b32d2e; }
+.lsn-redirect strong { color: #2271b1; }
+.lsn-blocked strong { color: #996800; }
+.lsn-error strong { color: #b35c00; }
+.lsn-ok strong { color: #00792b; }
+.lsn-actions .button { margin-left: 4px; }
+.lsn-progress { height: 6px; background: #f0f0f1; border-radius: 3px; margin-top: 12px; overflow: hidden; }
+.lsn-progress-bar { height: 100%; background: #2271b1; width: 0; transition: width .3s ease; }
+.lsn-panel[data-running="1"] .lsn-progress-bar { background-image: linear-gradient(90deg, rgba(255,255,255,0) 0, rgba(255,255,255,.35) 50%, rgba(255,255,255,0) 100%); background-size: 200% 100%; animation: lsn-shimmer 1.2s linear infinite; }
+@keyframes lsn-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.lsn-message { margin: 8px 0 0; color: #50575e; }
+.lsn-url { word-break: break-all; }
+.lsn-final { color: #50575e; word-break: break-all; }
+.lsn-anchor { color: #50575e; }
+.lsn-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 600; line-height: 1.6; background: #f0f0f1; color: #1d2327; }
+.lsn-badge-broken { background: #fcf0f1; color: #b32d2e; }
+.lsn-badge-redirect { background: #eaf2fa; color: #2271b1; }
+.lsn-badge-blocked { background: #fcf9e8; color: #996800; }
+.lsn-badge-error { background: #fdf3e7; color: #b35c00; }
+.lsn-badge-ok { background: #edfaef; color: #00792b; }
+.lsn-error-text { color: #50575e; font-size: 12px; }
+.lsn-action.lsn-danger { color: #b32d2e; }
+.column-status { width: 14%; }
+.column-last_checked { width: 10%; }
+.lsn-widget-counts a { text-decoration: none; }
+.lsn-widget-counts strong { font-size: 18px; }
