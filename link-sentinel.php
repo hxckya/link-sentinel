@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       Link Sentinel – Broken Link Checker
+ * Plugin Name:       Link Sentinel
  * Plugin URI:        https://github.com/hxckya/link-sentinel
  * Description:       Finds broken links and images and helps you fix them in place. Runs on your own server, no cloud account, and tells bot-blocked sites apart from dead ones.
  * Version:           0.1.0
