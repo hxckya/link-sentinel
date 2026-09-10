@@ -63,9 +63,10 @@ No. Requests go from your server directly to the linked sites, with a user agent
 
 == Screenshots ==
 
-1. The broken links table with fix actions.
-2. Scan progress panel.
-3. Settings.
+1. Broken links, with where each one appears and the fix actions (edit URL everywhere, unlink, dismiss, re-check).
+2. Redirecting links show their final destination; one click swaps the link for it.
+3. Sites that refuse automated requests are listed as Blocked, not Broken.
+4. Settings: what to scan, schedule, timeouts, exclusions.
 
 == Changelog ==
 
