@@ -248,8 +248,8 @@ class LinkSentinel_DB {
 
 		// $w holds only literals and $wpdb->prepare()d fragments (see above).
 		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}linksentinel_links l WHERE {$w}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
-		$sql   = $wpdb->prepare( "SELECT l.*, (SELECT COUNT(*) FROM {$wpdb->prefix}linksentinel_occurrences o WHERE o.link_id = l.id) AS occurrences FROM {$wpdb->prefix}linksentinel_links l WHERE {$w} ORDER BY {$orderby} {$order}, l.id DESC LIMIT %d OFFSET %d", $per, $offset ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows  = $wpdb->get_results( $sql ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $w is built from literals and prepare()d fragments above
+		// $w is built only from literals and $wpdb->prepare()d fragments above.
+		$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT l.*, (SELECT COUNT(*) FROM {$wpdb->prefix}linksentinel_occurrences o WHERE o.link_id = l.id) AS occurrences FROM {$wpdb->prefix}linksentinel_links l WHERE {$w} ORDER BY {$orderby} {$order}, l.id DESC LIMIT %d OFFSET %d", $per, $offset ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		return array( 'rows' => $rows, 'total' => $total );
 	}
 
