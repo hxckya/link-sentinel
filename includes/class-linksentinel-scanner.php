@@ -101,12 +101,22 @@ class LinkSentinel_Scanner {
 			return $state; // another runner has it
 		}
 		set_transient( self::LOCK, 1, max( 30, $budget * 4 ) );
+		$timeout  = (int) LinkSentinel_Settings::get( 'timeout' );
 		$deadline = microtime( true ) + $budget;
+		// A batch of requests cannot be interrupted, so make room for one
+		// full round (HEAD, then GET for refusals) past the budget.
+		if ( function_exists( 'set_time_limit' ) ) {
+			set_time_limit( $budget + 2 * $timeout + 10 );
+		}
 		try {
 			while ( microtime( true ) < $deadline ) {
 				if ( 'collect' === $state['phase'] ) {
 					$state = self::collect_step( $state );
 				} elseif ( 'check' === $state['phase'] ) {
+					// Do not start a round that could not finish inside the budget.
+					if ( microtime( true ) + $timeout > $deadline && $state['checked'] > 0 ) {
+						break;
+					}
 					$state = self::check_step( $state );
 				} else {
 					break;
@@ -259,7 +269,7 @@ class LinkSentinel_Scanner {
 
 	private static function check_step( $state ) {
 		$hours = (int) LinkSentinel_Settings::get( 'recheck_hours' );
-		$batch = min( self::LINK_BATCH, max( 4, 3 * (int) LinkSentinel_Settings::get( 'concurrency' ) ) );
+		$batch = min( self::LINK_BATCH, max( 2, 2 * (int) LinkSentinel_Settings::get( 'concurrency' ) ) );
 		$links = LinkSentinel_DB::links_to_check( $batch, $hours );
 		if ( ! $links ) {
 			$state['phase']    = 'done';

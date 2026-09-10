@@ -117,6 +117,10 @@ class LinkSentinel_Admin {
 		if ( in_array( $state['phase'], array( 'collect', 'check' ), true ) ) {
 			return __( 'Scan in progress…', 'link-sentinel' );
 		}
+		if ( 'idle' === $state['phase'] && $state['finished'] ) {
+			/* translators: %s: human time diff */
+			return sprintf( __( 'Last scan was stopped %s ago. Results above are from what had been checked by then.', 'link-sentinel' ), human_time_diff( (int) $state['finished'] ) );
+		}
 		return __( 'No scan has run yet. Click “Scan now” — you can leave this page; the scan continues in the background.', 'link-sentinel' );
 	}
 

@@ -52,7 +52,7 @@ class LinkSentinel_Plugin {
 
 	/** WP-Cron continuation of a running scan. */
 	public function tick() {
-		LinkSentinel_Scanner::step( 20 );
+		LinkSentinel_Scanner::step( 12 );
 	}
 
 	/** The recurring full scan. */
@@ -60,7 +60,7 @@ class LinkSentinel_Plugin {
 		if ( ! LinkSentinel_Scanner::is_running() ) {
 			LinkSentinel_Scanner::start( false );
 		}
-		LinkSentinel_Scanner::step( 20 );
+		LinkSentinel_Scanner::step( 12 );
 	}
 
 	public function on_post_deleted( $post_id ) {

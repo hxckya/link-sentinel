@@ -84,7 +84,8 @@ class LinkSentinel_REST {
 				/* translators: %s: human time diff */
 				return $state['finished'] ? sprintf( __( 'Last scan finished %s ago', 'link-sentinel' ), human_time_diff( (int) $state['finished'] ) ) : __( 'Scan finished', 'link-sentinel' );
 			default:
-				return __( 'No scan yet', 'link-sentinel' );
+				/* translators: %s: human time diff */
+				return $state['finished'] ? sprintf( __( 'Last scan was stopped %s ago', 'link-sentinel' ), human_time_diff( (int) $state['finished'] ) ) : __( 'No scan yet', 'link-sentinel' );
 		}
 	}
 

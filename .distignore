@@ -8,3 +8,5 @@ tests
 README.md
 *.zip
 .DS_Store
+bin
+dist

@@ -200,7 +200,20 @@ class LinkSentinel_Checker {
 		return $results;
 	}
 
+	/** request_multiple() fires everything at once; feed it the configured number at a time. */
 	private static function multi( array $requests ) {
+		$size = max( 1, (int) LinkSentinel_Settings::get( 'concurrency' ) );
+		if ( count( $requests ) <= $size ) {
+			return self::multi_chunk( $requests );
+		}
+		$out = array();
+		foreach ( array_chunk( $requests, $size, true ) as $chunk ) {
+			$out += self::multi_chunk( $chunk );
+		}
+		return $out;
+	}
+
+	private static function multi_chunk( array $requests ) {
 		$timeout = (int) LinkSentinel_Settings::get( 'timeout' );
 		$options = array(
 			'timeout'          => $timeout,
