@@ -185,8 +185,9 @@ class LinkSentinel_Checker {
 		$retry     = array();
 		foreach ( $responses as $id => $response ) {
 			$r = self::interpret( $response );
-			// HEAD is optional for servers; anything but a clean answer gets a GET.
-			if ( 'ok' !== $r['status'] && 'redirect' !== $r['status'] ) {
+			// HEAD is optional for servers; any HTTP answer but a clean one gets a
+			// GET. A timeout or refused connection would only repeat, so it does not.
+			if ( 'ok' !== $r['status'] && 'redirect' !== $r['status'] && $response instanceof \WpOrg\Requests\Response ) {
 				$retry[ $id ] = array( 'url' => $urls[ $id ], 'type' => \WpOrg\Requests\Requests::GET );
 				continue;
 			}

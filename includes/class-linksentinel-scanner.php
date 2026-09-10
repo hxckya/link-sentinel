@@ -106,18 +106,21 @@ class LinkSentinel_Scanner {
 		// A batch of requests cannot be interrupted, so make room for one
 		// full round (HEAD, then GET for refusals) past the budget.
 		if ( function_exists( 'set_time_limit' ) ) {
-			set_time_limit( $budget + 2 * $timeout + 10 );
+			set_time_limit( $budget + 2 * $timeout + 10 ); // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- one round of requests must be allowed to finish
 		}
+		$rounds = 0;
 		try {
 			while ( microtime( true ) < $deadline ) {
 				if ( 'collect' === $state['phase'] ) {
 					$state = self::collect_step( $state );
 				} elseif ( 'check' === $state['phase'] ) {
-					// Do not start a round that could not finish inside the budget.
-					if ( microtime( true ) + $timeout > $deadline && $state['checked'] > 0 ) {
+					// Always make progress; after the first round, do not start
+					// another that could not finish inside the budget.
+					if ( $rounds > 0 && microtime( true ) + $timeout > $deadline ) {
 						break;
 					}
 					$state = self::check_step( $state );
+					$rounds++;
 				} else {
 					break;
 				}
