@@ -10,3 +10,5 @@ README.md
 .DS_Store
 bin
 dist
+.wporg-assets
+SUBMIT.md
