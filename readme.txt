@@ -8,7 +8,7 @@ Stable tag: 0.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Finds broken links and images across your site and helps you fix them. Runs on your own server, no cloud account, and tells bot-blocked sites apart from dead ones.
+Finds broken links and images and helps you fix them in place. Runs on your own server, no cloud account, and tells bot-blocked from dead.
 
 == Description ==
 

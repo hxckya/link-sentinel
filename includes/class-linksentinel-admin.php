@@ -107,7 +107,12 @@ class LinkSentinel_Admin {
 	public static function describe_state( $state ) {
 		if ( 'done' === $state['phase'] && $state['finished'] ) {
 			/* translators: 1: human time diff, 2: number of items, 3: number of links */
-			return sprintf( __( 'Last scan finished %1$s ago: %2$d items read, %3$d links.', 'link-sentinel' ), human_time_diff( (int) $state['finished'] ), (int) $state['sources'], (int) $state['found'] );
+			$text = sprintf( __( 'Last scan finished %1$s ago: %2$d items read, %3$d links.', 'link-sentinel' ), human_time_diff( (int) $state['finished'] ), (int) $state['sources'], (int) $state['found'] );
+			if ( 0 === (int) $state['to_check'] && (int) $state['found'] > 0 ) {
+				/* translators: %d: hours */
+				$text .= ' ' . sprintf( __( 'Every link had been checked within the last %d hours, so none was fetched again — use “Full re-check” to fetch them all.', 'link-sentinel' ), (int) LinkSentinel_Settings::get( 'recheck_hours' ) );
+			}
+			return $text;
 		}
 		if ( in_array( $state['phase'], array( 'collect', 'check' ), true ) ) {
 			return __( 'Scan in progress…', 'link-sentinel' );
@@ -171,7 +176,7 @@ class LinkSentinel_Admin {
 					</tr>
 					<tr>
 						<th scope="row"><label for="lsn-exclude"><?php esc_html_e( 'Never check', 'link-sentinel' ); ?></label></th>
-						<td><textarea id="lsn-exclude" name="<?php echo esc_attr( LinkSentinel_Settings::OPTION ); ?>[exclude]" rows="4" class="large-text code" placeholder="example.com&#10;https://example.org/private/"><?php echo esc_textarea( $s['exclude'] ); ?></textarea>
+						<td><textarea id="lsn-exclude" name="<?php echo esc_attr( LinkSentinel_Settings::OPTION ); ?>[exclusions]" rows="4" class="large-text code" placeholder="example.com&#10;https://example.org/private/"><?php echo esc_textarea( $s['exclusions'] ); ?></textarea>
 							<p class="description"><?php esc_html_e( 'One domain or URL prefix per line. Subdomains of a listed domain are excluded too.', 'link-sentinel' ); ?></p></td>
 					</tr>
 					<tr>

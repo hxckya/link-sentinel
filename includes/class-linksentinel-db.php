@@ -75,15 +75,14 @@ class LinkSentinel_DB {
 	/** Insert the URL if new; return its id either way. */
 	public static function upsert_link( $url, $is_internal ) {
 		global $wpdb;
-		$table = self::links_table();
 		$hash  = md5( $url );
-		$id    = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE url_hash = %s", $hash ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$id    = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$wpdb->prefix}linksentinel_links WHERE url_hash = %s", $hash ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		if ( $id ) {
 			return (int) $id;
 		}
 		$host = wp_parse_url( $url, PHP_URL_HOST );
 		$wpdb->insert(
-			$table,
+			self::links_table(),
 			array(
 				'url'         => $url,
 				'url_hash'    => $hash,
@@ -117,10 +116,8 @@ class LinkSentinel_DB {
 	/** Drop what an earlier scan saw but this one did not, then orphaned URLs. */
 	public static function purge_stale( $scan_id ) {
 		global $wpdb;
-		$occ   = self::occurrences_table();
-		$links = self::links_table();
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$occ} WHERE scan_id <> %d", $scan_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( "DELETE l FROM {$links} l LEFT JOIN {$occ} o ON o.link_id = l.id WHERE o.id IS NULL" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}linksentinel_occurrences WHERE scan_id <> %d", $scan_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "DELETE l FROM {$wpdb->prefix}linksentinel_links l LEFT JOIN {$wpdb->prefix}linksentinel_occurrences o ON o.link_id = l.id WHERE o.id IS NULL" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	/** Remove one source's occurrences (before re-collecting it). */
@@ -132,34 +129,29 @@ class LinkSentinel_DB {
 	/** Links due for a fetch: never checked, or checked before the cutoff. */
 	public static function links_to_check( $limit, $recheck_hours ) {
 		global $wpdb;
-		$table  = self::links_table();
 		$cutoff = gmdate( 'Y-m-d H:i:s', time() - $recheck_hours * HOUR_IN_SECONDS );
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE dismissed = 0 AND (last_checked IS NULL OR last_checked < %s) ORDER BY last_checked IS NULL DESC, last_checked ASC LIMIT %d", $cutoff, $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}linksentinel_links WHERE dismissed = 0 AND (last_checked IS NULL OR last_checked < %s) ORDER BY last_checked IS NULL DESC, last_checked ASC LIMIT %d", $cutoff, $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	public static function link_by_url( $url ) {
 		global $wpdb;
-		$table = self::links_table();
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE url_hash = %s", md5( $url ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}linksentinel_links WHERE url_hash = %s", md5( $url ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	public static function occurrence_count( $link_id ) {
 		global $wpdb;
-		$occ = self::occurrences_table();
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$occ} WHERE link_id = %d", $link_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}linksentinel_occurrences WHERE link_id = %d", $link_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	public static function count_to_check( $recheck_hours ) {
 		global $wpdb;
-		$table  = self::links_table();
 		$cutoff = gmdate( 'Y-m-d H:i:s', time() - $recheck_hours * HOUR_IN_SECONDS );
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE dismissed = 0 AND (last_checked IS NULL OR last_checked < %s)", $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}linksentinel_links WHERE dismissed = 0 AND (last_checked IS NULL OR last_checked < %s)", $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	public static function get_link( $id ) {
 		global $wpdb;
-		$table = self::links_table();
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}linksentinel_links WHERE id = %d", $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	public static function save_result( $id, $result ) {
@@ -207,15 +199,13 @@ class LinkSentinel_DB {
 		if ( ! $ids ) {
 			return;
 		}
-		$table = self::links_table();
 		$in    = implode( ',', $ids );
-		$wpdb->query( "UPDATE {$table} SET last_checked = NULL, status = 'unchecked' WHERE id IN ({$in})" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "UPDATE {$wpdb->prefix}linksentinel_links SET last_checked = NULL, status = 'unchecked' WHERE id IN ({$in})" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	public static function counts() {
 		global $wpdb;
-		$table = self::links_table();
-		$rows  = $wpdb->get_results( "SELECT status, dismissed, COUNT(*) AS n FROM {$table} GROUP BY status, dismissed" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows  = $wpdb->get_results( "SELECT status, dismissed, COUNT(*) AS n FROM {$wpdb->prefix}linksentinel_links GROUP BY status, dismissed" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$out   = array( 'all' => 0, 'broken' => 0, 'redirect' => 0, 'blocked' => 0, 'error' => 0, 'ok' => 0, 'unchecked' => 0, 'dismissed' => 0 );
 		foreach ( $rows as $r ) {
 			$out['all'] += (int) $r->n;
@@ -237,8 +227,6 @@ class LinkSentinel_DB {
 	 */
 	public static function query( $args ) {
 		global $wpdb;
-		$links = self::links_table();
-		$occ   = self::occurrences_table();
 		$where = array( '1=1' );
 		$view  = isset( $args['view'] ) ? $args['view'] : 'broken';
 		if ( 'dismissed' === $view ) {
@@ -258,21 +246,16 @@ class LinkSentinel_DB {
 		$offset  = max( 0, ( (int) $args['paged'] - 1 ) * $per );
 		$w       = implode( ' AND ', $where );
 
-		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$links} l WHERE {$w}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows  = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT l.*, (SELECT COUNT(*) FROM {$occ} o WHERE o.link_id = l.id) AS occurrences FROM {$links} l WHERE {$w} ORDER BY {$orderby} {$order}, l.id DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$per,
-				$offset
-			)
-		);
+		// $w holds only literals and $wpdb->prepare()d fragments (see above).
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}linksentinel_links l WHERE {$w}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
+		$sql   = $wpdb->prepare( "SELECT l.*, (SELECT COUNT(*) FROM {$wpdb->prefix}linksentinel_occurrences o WHERE o.link_id = l.id) AS occurrences FROM {$wpdb->prefix}linksentinel_links l WHERE {$w} ORDER BY {$orderby} {$order}, l.id DESC LIMIT %d OFFSET %d", $per, $offset ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows  = $wpdb->get_results( $sql ); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $w is built from literals and prepare()d fragments above
 		return array( 'rows' => $rows, 'total' => $total );
 	}
 
 	public static function occurrences( $link_id, $limit = 20 ) {
 		global $wpdb;
-		$occ = self::occurrences_table();
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$occ} WHERE link_id = %d ORDER BY id ASC LIMIT %d", $link_id, $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}linksentinel_occurrences WHERE link_id = %d ORDER BY id ASC LIMIT %d", $link_id, $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	public static function delete_link( $id ) {

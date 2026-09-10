@@ -24,7 +24,7 @@ class LinkSentinel_Settings {
 			'recheck_hours'    => 72,       // a link checked more recently than this is not re-fetched
 			'timeout'          => 10,
 			'concurrency'      => 8,
-			'exclude'          => '',       // one domain or URL prefix per line
+			'exclusions'       => '',       // one domain or URL prefix per line
 			'blocked_is_broken' => false,
 			'user_agent'       => 'Mozilla/5.0 (compatible; LinkSentinel/' . LINKSENTINEL_VERSION . '; +https://github.com/hxckya/link-sentinel)',
 		);
@@ -71,9 +71,9 @@ class LinkSentinel_Settings {
 		$out['timeout']       = isset( $in['timeout'] ) ? max( 3, min( 60, (int) $in['timeout'] ) ) : $d['timeout'];
 		$out['concurrency']   = isset( $in['concurrency'] ) ? max( 1, min( 20, (int) $in['concurrency'] ) ) : $d['concurrency'];
 
-		$lines          = isset( $in['exclude'] ) ? explode( "\n", (string) $in['exclude'] ) : array();
-		$lines          = array_filter( array_map( 'trim', array_map( 'sanitize_text_field', $lines ) ) );
-		$out['exclude'] = implode( "\n", $lines );
+		$lines             = isset( $in['exclusions'] ) ? explode( "\n", (string) $in['exclusions'] ) : array();
+		$lines             = array_filter( array_map( 'trim', array_map( 'sanitize_text_field', $lines ) ) );
+		$out['exclusions'] = implode( "\n", $lines );
 
 		$ua                = isset( $in['user_agent'] ) ? sanitize_text_field( $in['user_agent'] ) : '';
 		$out['user_agent'] = '' !== $ua ? $ua : $d['user_agent'];
@@ -84,7 +84,7 @@ class LinkSentinel_Settings {
 
 	/** Exclusion rules as a list of lowercase domains or URL prefixes. */
 	public static function exclusions() {
-		$raw = (string) self::get( 'exclude' );
+		$raw = (string) self::get( 'exclusions' );
 		return array_filter( array_map( 'strtolower', array_map( 'trim', explode( "\n", $raw ) ) ) );
 	}
 }

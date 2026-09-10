@@ -135,9 +135,10 @@ class LinkSentinel_Scanner {
 		if ( 'posts' === $state['stage'] ) {
 			$types    = array_map( 'sanitize_key', (array) $settings['post_types'] );
 			$statuses = array_map( 'sanitize_key', (array) $settings['post_statuses'] );
-			$in_types = "'" . implode( "','", array_map( 'esc_sql', $types ) ) . "'";
-			$in_stat  = "'" . implode( "','", array_map( 'esc_sql', $statuses ) ) . "'";
-			$ids      = $wpdb->get_col( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE ID > %d AND post_type IN ({$in_types}) AND post_status IN ({$in_stat}) ORDER BY ID ASC LIMIT %d", (int) $state['cursor'], self::POST_BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			$ph_types = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+			$ph_stat  = implode( ',', array_fill( 0, count( $statuses ), '%s' ) );
+			$args     = array_merge( array( (int) $state['cursor'] ), $types, $statuses, array( self::POST_BATCH ) );
+			$ids      = $wpdb->get_col( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE ID > %d AND post_type IN ({$ph_types}) AND post_status IN ({$ph_stat}) ORDER BY ID ASC LIMIT %d", $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- placeholders are generated to match $args
 			if ( ! $ids ) {
 				$state['stage']  = 'menus';
 				$state['cursor'] = 0;
@@ -185,8 +186,7 @@ class LinkSentinel_Scanner {
 		LinkSentinel_DB::purge_stale( (int) $state['id'] );
 		if ( ! empty( $state['force_all'] ) ) {
 			global $wpdb;
-			$table = LinkSentinel_DB::links_table();
-			$wpdb->query( "UPDATE {$table} SET last_checked = NULL WHERE dismissed = 0" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+			$wpdb->query( "UPDATE {$wpdb->prefix}linksentinel_links SET last_checked = NULL WHERE dismissed = 0" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		}
 		$state['phase']    = 'check';
 		$state['cursor']   = 0;
