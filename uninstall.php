@@ -11,10 +11,14 @@ global $wpdb;
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}linksentinel_occurrences" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}linksentinel_links" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}linksentinel_redirects" );
 // phpcs:enable
 delete_option( 'linksentinel_settings' );
 delete_option( 'linksentinel_scan' );
 delete_option( 'linksentinel_db_version' );
+delete_option( 'linksentinel_pro_db_version' );
+delete_option( 'linksentinel_last_notified_scan' );
+delete_option( 'linksentinel_last_webhook_scan' );
 delete_transient( 'linksentinel_lock' );
 wp_clear_scheduled_hook( 'linksentinel_tick' );
 wp_clear_scheduled_hook( 'linksentinel_scheduled_scan' );

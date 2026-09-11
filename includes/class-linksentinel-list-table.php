@@ -156,6 +156,7 @@ class LinkSentinel_List_Table extends WP_List_Table {
 		} else {
 			$actions['dismiss'] = sprintf( '<button type="button" class="button-link lsn-action" data-action="dismiss" data-id="%d">%s</button>', (int) $item->id, esc_html__( 'Dismiss', 'link-sentinel' ) );
 		}
+		$actions = apply_filters( 'linksentinel_row_actions', $actions, $item );
 		return $html . $this->row_actions( $actions );
 	}
 
@@ -199,6 +200,10 @@ class LinkSentinel_List_Table extends WP_List_Table {
 	}
 
 	private function describe_occurrence( $o ) {
+		$custom = apply_filters( 'linksentinel_describe_occurrence', '', $o );
+		if ( '' !== $custom ) {
+			return $custom;
+		}
 		$anchor = '' !== $o->anchor_text ? ' <span class="lsn-anchor">“' . esc_html( mb_substr( $o->anchor_text, 0, 60 ) ) . '”</span>' : '';
 		$kind   = 'a' === $o->element ? '' : ' <span class="description">(' . esc_html( $o->element ) . ')</span>';
 		if ( 'post' === $o->source_type ) {

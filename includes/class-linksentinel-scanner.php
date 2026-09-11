@@ -241,6 +241,11 @@ class LinkSentinel_Scanner {
 				$found[] = $f;
 			}
 		}
+		/**
+		 * Lets extensions add links from other places on the post (custom fields, builder data).
+		 * Items may carry their own 'field'.
+		 */
+		$found = apply_filters( 'linksentinel_post_links', $found, $post, $base, $scan_id );
 		return self::store( 'post', $post_id, 'content', $found, $scan_id );
 	}
 
@@ -308,15 +313,16 @@ class LinkSentinel_Scanner {
 		$seen = array();
 		$n    = 0;
 		foreach ( $found as $f ) {
-			if ( empty( $f['url'] ) || isset( $seen[ $f['url'] ] ) ) {
+			$f_field = isset( $f['field'] ) && '' !== $f['field'] ? $f['field'] : $field;
+			if ( empty( $f['url'] ) || isset( $seen[ $f_field . '|' . $f['url'] ] ) ) {
 				continue;
 			}
 			if ( LinkSentinel_Extractor::is_excluded( $f['url'], $rules ) ) {
 				continue;
 			}
-			$seen[ $f['url'] ] = true;
-			$link_id           = LinkSentinel_DB::upsert_link( $f['url'], LinkSentinel_Extractor::is_internal( $f['url'] ) );
-			LinkSentinel_DB::add_occurrence( $link_id, $source_type, $source_id, $field, $f['element'], $f['anchor'], $f['raw'], $scan_id );
+			$seen[ $f_field . '|' . $f['url'] ] = true;
+			$link_id                            = LinkSentinel_DB::upsert_link( $f['url'], LinkSentinel_Extractor::is_internal( $f['url'] ) );
+			LinkSentinel_DB::add_occurrence( $link_id, $source_type, $source_id, $f_field, $f['element'], $f['anchor'], $f['raw'], $scan_id );
 			$n++;
 		}
 		return $n;
@@ -333,6 +339,7 @@ class LinkSentinel_Scanner {
 			$state['finished'] = time();
 			self::save( $state );
 			LinkSentinel_Notifier::maybe_send( $state );
+			do_action( 'linksentinel_scan_done', $state );
 			return $state;
 		}
 		$results = LinkSentinel_Checker::check( $links );

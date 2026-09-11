@@ -20,6 +20,11 @@ class LinkSentinel_Plugin {
 	}
 
 	private function __construct() {
+		if ( LinkSentinel_License::can_use_pro() ) {
+			require_once LINKSENTINEL_PRO_DIR . 'class-linksentinel-pro.php';
+			LinkSentinel_Pro::init();
+			LinkSentinel_Settings::flush();
+		}
 		add_action( 'linksentinel_tick', array( $this, 'tick' ) );
 		add_action( 'linksentinel_scheduled_scan', array( $this, 'scheduled_scan' ) );
 		add_action( 'rest_api_init', array( 'LinkSentinel_REST', 'register' ) );
@@ -75,9 +80,13 @@ class LinkSentinel_Plugin {
 	private static function schedule_for( $schedule ) {
 		$next    = wp_next_scheduled( 'linksentinel_scheduled_scan' );
 		$current = $next ? wp_get_schedule( 'linksentinel_scheduled_scan' ) : null;
-		if ( 'never' === $schedule || ! in_array( $schedule, array( 'daily', 'weekly' ), true ) ) {
+		if ( 'never' === $schedule ) {
 			wp_clear_scheduled_hook( 'linksentinel_scheduled_scan' );
 			return;
+		}
+		// An interval that is no longer offered (a Pro one after the licence lapsed) falls back to daily.
+		if ( ! array_key_exists( $schedule, LinkSentinel_Settings::schedules() ) || ! array_key_exists( $schedule, wp_get_schedules() ) ) {
+			$schedule = 'daily';
 		}
 		if ( $current === $schedule ) {
 			return;

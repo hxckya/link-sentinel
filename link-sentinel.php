@@ -21,8 +21,10 @@ define( 'LINKSENTINEL_VERSION', '0.1.1' );
 define( 'LINKSENTINEL_FILE', __FILE__ );
 define( 'LINKSENTINEL_DIR', plugin_dir_path( __FILE__ ) );
 define( 'LINKSENTINEL_URL', plugin_dir_url( __FILE__ ) );
+define( 'LINKSENTINEL_PRO_DIR', LINKSENTINEL_DIR . 'includes/pro__premium_only/' );
 
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-settings.php';
+require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-license.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-db.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-extractor.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-checker.php';
@@ -33,6 +35,9 @@ require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-cli.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-rest.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-admin.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-plugin.php';
+
+// Loads the Freemius SDK once a product id is configured; a no-op until then.
+LinkSentinel_License::fs();
 
 register_activation_hook( __FILE__, array( 'LinkSentinel_Plugin', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'LinkSentinel_Plugin', 'deactivate' ) );

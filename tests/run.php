@@ -163,6 +163,13 @@ $ref->setValue( null, null );
 delete_option( LinkSentinel_Notifier::OPTION );
 LinkSentinel_DB::delete_link( $bl_id );
 
+// ---- Pro (only when the premium files are present and allowed) -------------
+if ( LinkSentinel_License::can_use_pro() ) {
+	require __DIR__ . '/pro.php';
+} else {
+	echo "SKIP  pro checks (free build)\n";
+}
+
 // cleanup
 foreach ( array( $pid, $pid2, $draft_id ) as $id ) {
 	wp_delete_post( $id, true );

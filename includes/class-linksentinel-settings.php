@@ -15,6 +15,10 @@ class LinkSentinel_Settings {
 	private static $cache = null;
 
 	public static function defaults() {
+		return apply_filters( 'linksentinel_settings_defaults', self::base_defaults() );
+	}
+
+	private static function base_defaults() {
 		return array(
 			'post_types'       => array( 'post', 'page' ),
 			'post_statuses'    => array( 'publish' ),
@@ -74,7 +78,7 @@ class LinkSentinel_Settings {
 		$out['blocked_is_broken'] = ! empty( $in['blocked_is_broken'] );
 
 		$schedule        = isset( $in['schedule'] ) ? $in['schedule'] : $d['schedule'];
-		$out['schedule'] = in_array( $schedule, array( 'never', 'daily', 'weekly' ), true ) ? $schedule : $d['schedule'];
+		$out['schedule'] = array_key_exists( $schedule, self::schedules() ) ? $schedule : $d['schedule'];
 
 		$out['recheck_hours'] = isset( $in['recheck_hours'] ) ? max( 1, min( 720, (int) $in['recheck_hours'] ) ) : $d['recheck_hours'];
 		$out['timeout']       = isset( $in['timeout'] ) ? max( 3, min( 60, (int) $in['timeout'] ) ) : $d['timeout'];
@@ -87,8 +91,26 @@ class LinkSentinel_Settings {
 		$ua                = isset( $in['user_agent'] ) ? sanitize_text_field( $in['user_agent'] ) : '';
 		$out['user_agent'] = '' !== $ua ? $ua : $d['user_agent'];
 
+		$out = apply_filters( 'linksentinel_settings_sanitize', $out, $in, $d );
 		self::$cache = null;
 		return $out;
+	}
+
+	/** Forget the per-request cache (after Pro adds its defaults, or in tests). */
+	public static function flush() {
+		self::$cache = null;
+	}
+
+	/** Automatic-scan intervals offered in Settings: value => label. WP-Cron names. */
+	public static function schedules() {
+		return apply_filters(
+			'linksentinel_schedules',
+			array(
+				'weekly' => __( 'Weekly', 'link-sentinel' ),
+				'daily'  => __( 'Daily', 'link-sentinel' ),
+				'never'  => __( 'Never (manual only)', 'link-sentinel' ),
+			)
+		);
 	}
 
 	/** Exclusion rules as a list of lowercase domains or URL prefixes. */

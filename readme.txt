@@ -34,6 +34,10 @@ Every edit goes through the normal WordPress save, so revisions keep the previou
 
 **Free means free.** Everything above is in this plugin. There is no cloud tier hiding the results.
 
+
+= Link Sentinel Pro =
+
+The free plugin is complete and stays that way. Pro adds what agencies and larger sites asked for: redirects for dead URLs on your own site (visitors and search engines land on a page that works instead of a 404), custom-field scanning (ACF, Elementor and other page-builder data, SEO plugin fields, all fixable in place), Slack, Discord and webhook alerts, CSV export of any view, and hourly or twice-daily scans.
 == Installation ==
 
 1. Install and activate the plugin.
