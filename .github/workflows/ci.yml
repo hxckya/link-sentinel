@@ -31,7 +31,7 @@ jobs:
       - name: Build free and Pro ZIPs
         run: |
           bin/build.sh
-          unzip -l dist/link-sentinel-*.zip | grep -q 'vendor/freemius/start.php'
+          unzip -l dist/link-sentinel-[0-9]*.zip | grep -q 'vendor/freemius/start.php'
           unzip -l dist/link-sentinel-pro-*.zip | grep -q 'pro__premium_only/class-linksentinel-pro.php'
       - name: Free build activates on its own and passes Plugin Check
         run: |
