@@ -32,7 +32,7 @@ jobs:
         run: |
           bin/build.sh
           unzip -l dist/link-sentinel-[0-9]*.zip | grep -q 'vendor/freemius/start.php'
-          unzip -l dist/link-sentinel-pro-*.zip | grep -q 'pro__premium_only/class-linksentinel-pro.php'
+          unzip -l dist/link-sentinel-premium-*.zip | grep -q 'pro__premium_only/class-linksentinel-pro.php'
       - name: Free build activates on its own and passes Plugin Check
         run: |
           C="docker compose -f .docker/docker-compose.yml run --rm -T cli"

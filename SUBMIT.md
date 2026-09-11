@@ -44,7 +44,7 @@ product to exist. Steps:
    14-day money-back. A free plan already exists by default; leave it.
 5. **Payouts** are only needed before the first payout: PayPal or Wise (South
    Korea is supported). Nothing to do until money arrives.
-6. Uploading the Pro ZIP (`bin/build.sh` → `dist/link-sentinel-pro-<ver>.zip`)
+6. Uploading the Pro ZIP (`bin/build.sh` → `dist/link-sentinel-freemius-<ver>.zip`)
    to the Freemius "Deployment" page is a Claude step once the IDs are in.
 
 Do not merge PR #1 into `main` before the WordPress.org review finishes; the
