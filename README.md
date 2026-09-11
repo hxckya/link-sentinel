@@ -15,6 +15,27 @@ stays trustworthy.
 
 See [`readme.txt`](readme.txt) for the WordPress.org description.
 
+## Pro
+
+The free plugin is complete and stays that way. Link Sentinel Pro adds, for
+agencies and larger sites:
+
+- **Redirects for dead URLs on your own site.** A broken internal link usually
+  means a page that moved; one click sends visitors and search engines from the
+  old address to the new one. Rules apply only to addresses that would 404, so
+  they can never shadow a page that exists. Hit counts, a Redirects page.
+- **Custom-field scanning.** ACF fields, Elementor and other page-builder data,
+  SEO plugin fields — serialized and JSON values included — and the same
+  in-place fixes write back through the structure without corrupting it.
+- **Slack, Discord and webhook alerts** after scheduled scans.
+- **CSV export** of any view.
+- **Hourly and twice-daily scans.**
+
+Pro is sold through Freemius (checkout, licences and updates); the link will
+appear here and in the plugin once the free version is listed on
+WordPress.org. Source for both lives in this repository; the premium files
+sit under `includes/pro__premium_only/` and are left out of the free build.
+
 ## Development
 
 ```bash
