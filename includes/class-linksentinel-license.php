@@ -47,7 +47,7 @@ class LinkSentinel_License {
 			array(
 				'id'                  => self::FS_ID,
 				'slug'                => 'link-sentinel',
-				'premium_slug'        => 'link-sentinel-pro',
+				'premium_slug'        => 'link-sentinel-premium',
 				'type'                => 'plugin',
 				'public_key'          => self::FS_PUBLIC_KEY,
 				'is_premium'          => self::is_premium_build(),
