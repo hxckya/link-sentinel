@@ -20,6 +20,10 @@ class LinkSentinel_Plugin {
 	}
 
 	private function __construct() {
+		$fs = LinkSentinel_License::fs();
+		if ( $fs ) {
+			$fs->add_action( 'after_uninstall', array( __CLASS__, 'uninstall' ) );
+		}
 		if ( LinkSentinel_License::can_use_pro() ) {
 			require_once LINKSENTINEL_PRO_DIR . 'class-linksentinel-pro.php';
 			LinkSentinel_Pro::init();
@@ -41,6 +45,30 @@ class LinkSentinel_Plugin {
 	public static function activate() {
 		LinkSentinel_DB::install();
 		self::schedule_for( LinkSentinel_Settings::get( 'schedule' ) );
+		if ( ! LinkSentinel_License::fs() ) {
+			// Without Freemius, WordPress needs the uninstall callback recorded at activation.
+			register_uninstall_hook( LINKSENTINEL_FILE, array( __CLASS__, 'uninstall' ) );
+		}
+	}
+
+	/**
+	 * Removes everything the plugin stored: tables, options, cron events.
+	 * Runs from Freemius' after_uninstall hook, or from WordPress directly
+	 * when the SDK is not configured.
+	 */
+	public static function uninstall() {
+		global $wpdb;
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}linksentinel_occurrences" );
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}linksentinel_links" );
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}linksentinel_redirects" );
+		// phpcs:enable
+		foreach ( array( 'linksentinel_settings', 'linksentinel_scan', 'linksentinel_db_version', 'linksentinel_pro_db_version', 'linksentinel_last_notified_scan', 'linksentinel_last_webhook_scan' ) as $option ) {
+			delete_option( $option );
+		}
+		delete_transient( 'linksentinel_lock' );
+		wp_clear_scheduled_hook( 'linksentinel_tick' );
+		wp_clear_scheduled_hook( 'linksentinel_scheduled_scan' );
 	}
 
 	public static function deactivate() {
