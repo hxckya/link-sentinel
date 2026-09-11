@@ -13,9 +13,9 @@ defined( 'ABSPATH' ) || exit;
 
 class LinkSentinel_License {
 
-	/** Freemius product id and public key; empty until the product exists. */
-	const FS_ID         = '';
-	const FS_PUBLIC_KEY = '';
+	/** Freemius product id and public key (both public; the secret key is never stored here). */
+	const FS_ID         = '39272';
+	const FS_PUBLIC_KEY = 'pk_f8f9173a22161a3cfe05162624f20';
 
 	/** @var bool|null */
 	private static $can = null;
@@ -55,6 +55,7 @@ class LinkSentinel_License {
 				'has_premium_version' => true,
 				'has_addons'          => false,
 				'has_paid_plans'      => true,
+				'is_org_compliant'    => true,
 				// Free users are never asked to opt in; nothing leaves the site unless they buy.
 				'anonymous_mode'      => true,
 				'is_live'             => true,
