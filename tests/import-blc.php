@@ -105,7 +105,11 @@ $cloud_daily = array( 'use_legacy_blc_version' => false, 'schedule' => array( 'a
 $quiet       = $I::plan( array( 'cloud' => $cloud_daily ), array_merge( $current, array( 'notify_email' => false ) ), $env );
 ok( true === $quiet['items']['schedule']['checked'] && empty( $quiet['items']['schedule']['note'] ), 'blc plan: with the email report off, weekly to daily is pre-selected' );
 $both = $I::plan( array( 'local' => array( 'send_email_notifications' => '1' ), 'cloud' => $cloud_daily ), array_merge( $current, array( 'notify_email' => false ) ), $env );
-ok( true === $both['items']['email']['set']['notify_email'] && false === $both['items']['schedule']['checked'], 'blc plan: a report the import turns on counts as on' );
+ok( ! isset( $both['items']['email'] ) && true === $both['items']['schedule']['checked'] && in_array( 'Email report settings: they belong to the local checker, which the Cloud scanner does not use.', $both['skipped'], true ), 'blc plan: in Cloud mode the local checker\'s email settings are not imported' );
+$local_mail = $I::plan( array( 'local' => array( 'send_email_notifications' => '1', 'run_via_cron' => false ) ), array_merge( $current, array( 'notify_email' => false, 'schedule' => 'daily' ) ), $env );
+ok( true === $local_mail['items']['email']['set']['notify_email'] && true === $local_mail['items']['schedule']['checked'], 'blc plan: a report the import turns on counts as on (fewer scans stay pre-selected)' );
+$cloud_idle = $I::plan( array( 'cloud' => array( 'use_legacy_blc_version' => false, 'schedule' => array( 'active' => false, 'frequency' => 'daily' ) ) ), $current, $env );
+ok( ! isset( $cloud_idle['items']['schedule'] ) && (bool) array_filter( $cloud_idle['skipped'], function ( $l ) { return 0 === strpos( $l, 'Cloud scanner without a scan schedule' ); } ), 'blc plan: an inactive cloud schedule keeps Link Sentinel\'s own schedule' );
 $manual = $I::plan( array( 'local' => array( 'run_via_cron' => false ) ), $current, $env );
 ok( isset( $manual['items']['schedule'] ) && 'never' === $manual['items']['schedule']['set']['schedule'] && true === $manual['items']['schedule']['checked'] && empty( $manual['items']['schedule']['note'] ), 'blc plan: dashboard-only checking becomes manual scans, pre-selected (fewer scans)' );
 $strings = $I::plan( array( 'local' => array( 'run_via_cron' => '1', 'check_threshold' => '168', 'timeout' => '30', 'send_email_notifications' => '', 'enabled_post_statuses' => array( 'publish' ), 'exclusion_list' => array() ) ), $current, $env );

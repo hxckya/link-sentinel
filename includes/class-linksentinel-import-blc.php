@@ -374,11 +374,15 @@ class LinkSentinel_Import_BLC {
 				}
 			}
 
-			// E-mail report.
+			// E-mail report. Only the local checker sends it: in Cloud mode these settings
+			// are left over and were not in effect, so importing them would turn on mail
+			// the site owner never received.
 			$notify    = ! array_key_exists( 'send_email_notifications', $local ) || ! empty( $local['send_email_notifications'] );
 			$notify_to = isset( $local['notification_email_address'] ) && is_scalar( $local['notification_email_address'] ) ? sanitize_email( (string) $local['notification_email_address'] ) : '';
 			$notify_to = is_email( $notify_to ) ? $notify_to : '';
-			if ( $notify !== (bool) $current['notify_email'] || ( '' !== $notify_to && $notify_to !== $current['notify_to'] ) ) {
+			if ( $cloud_on ) {
+				$skipped[] = __( 'Email report settings: they belong to the local checker, which the Cloud scanner does not use.', 'link-sentinel' );
+			} elseif ( $notify !== (bool) $current['notify_email'] || ( '' !== $notify_to && $notify_to !== $current['notify_to'] ) ) {
 				$to = '' !== $notify_to ? $notify_to : (string) $current['notify_to'];
 				$items['email'] = array(
 					'label' => __( 'Email report', 'link-sentinel' ),
@@ -400,6 +404,14 @@ class LinkSentinel_Import_BLC {
 		if ( $cloud_on ) {
 			$mapped = self::map_cloud_schedule( isset( $cloud['schedule'] ) ? $cloud['schedule'] : null );
 			$sched  = array( 'schedule' => $mapped['schedule'], 'recheck_hours' => (int) $current['recheck_hours'] );
+			if ( 'never' === $mapped['schedule'] ) {
+				// An inactive cloud schedule is that plugin's default until someone connects the
+				// cloud service, so it is no choice to copy: turning off Link Sentinel's own
+				// scans (and with them its email report) because of it would be a surprise.
+				$sched = null;
+				/* translators: %s: Link Sentinel's current automatic scan schedule, such as Weekly */
+				$skipped[] = sprintf( __( 'Cloud scanner without a scan schedule: Link Sentinel keeps its own automatic scan schedule (%s), which you can change below.', 'link-sentinel' ), isset( $schedules[ $current['schedule'] ] ) ? $schedules[ $current['schedule'] ] : (string) $current['schedule'] );
+			}
 			if ( $mapped['approximate'] ) {
 				$skipped[] = __( 'Monthly cloud scan: Link Sentinel has no monthly schedule, so it becomes weekly.', 'link-sentinel' );
 			}
