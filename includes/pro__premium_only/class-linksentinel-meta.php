@@ -19,6 +19,43 @@ class LinkSentinel_Meta {
 		add_filter( 'linksentinel_post_links', array( __CLASS__, 'collect' ), 10, 4 );
 		add_filter( 'linksentinel_rewrite_source', array( __CLASS__, 'rewrite' ), 10, 4 );
 		add_filter( 'linksentinel_describe_occurrence', array( __CLASS__, 'describe' ), 10, 2 );
+		add_filter( 'linksentinel_blc_import_plan', array( __CLASS__, 'import_plan' ), 10, 3 );
+	}
+
+	/**
+	 * Import from Broken Link Checker: its custom-field and ACF modules have an
+	 * equivalent here, so they leave "Not imported" (whose lines speak of the free
+	 * plugin) and, while custom-field scanning is off, become an item that turns it on.
+	 */
+	public static function import_plan( $plan, $source, $current ) {
+		$local = is_array( $source ) && isset( $source['local'] ) && is_array( $source['local'] ) ? $source['local'] : null;
+		if ( ! is_array( $plan ) || ! $local || ! array_intersect( array( 'custom_field', 'acf_field' ), LinkSentinel_Import_BLC::active_modules( $local ) ) ) {
+			return $plan;
+		}
+		unset( $plan['skipped']['custom_field'], $plan['skipped']['acf_field'] );
+		if ( ! empty( $current['scan_meta'] ) ) {
+			return $plan;
+		}
+		$item = array(
+			'label' => __( 'Custom fields', 'link-sentinel' ),
+			'from'  => __( 'Not scanned', 'link-sentinel' ),
+			'to'    => __( 'Scanned: all custom fields, including ACF, page-builder and SEO plugin fields', 'link-sentinel' ),
+			'note'  => __( 'Broken Link Checker scanned only the fields listed in its settings; Link Sentinel looks for links in every custom field.', 'link-sentinel' ),
+			'set'   => array( 'scan_meta' => true ),
+		);
+		// Next to the other "what to scan" rows.
+		$items = array();
+		foreach ( $plan['items'] as $key => $existing ) {
+			if ( ! isset( $items['scan_meta'] ) && ! in_array( $key, array( 'content', 'statuses' ), true ) ) {
+				$items['scan_meta'] = $item;
+			}
+			$items[ $key ] = $existing;
+		}
+		if ( ! isset( $items['scan_meta'] ) ) {
+			$items['scan_meta'] = $item;
+		}
+		$plan['items'] = $items;
+		return $plan;
 	}
 
 	public static function collect( $found, $post, $base, $scan_id ) {

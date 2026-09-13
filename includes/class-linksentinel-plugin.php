@@ -63,7 +63,7 @@ class LinkSentinel_Plugin {
 		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}linksentinel_links" );
 		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}linksentinel_redirects" );
 		// phpcs:enable
-		foreach ( array( 'linksentinel_settings', 'linksentinel_scan', 'linksentinel_db_version', 'linksentinel_pro_db_version', 'linksentinel_last_notified_scan', 'linksentinel_last_webhook_scan' ) as $option ) {
+		foreach ( array( 'linksentinel_settings', 'linksentinel_scan', 'linksentinel_db_version', 'linksentinel_pro_db_version', 'linksentinel_last_notified_scan', 'linksentinel_last_webhook_scan', 'linksentinel_blc_import' ) as $option ) {
 			delete_option( $option );
 		}
 		delete_transient( 'linksentinel_lock' );
