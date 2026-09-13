@@ -15,7 +15,8 @@ services:
   wp:
     image: wordpress:php8.3-apache
     ports:
-      - "8089:80"
+      # LSN_PORT: see up.sh, for running a second stack under its own project name.
+      - "${LSN_PORT:-8089}:80"
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: wp

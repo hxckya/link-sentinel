@@ -15,14 +15,22 @@
  *   once and the old option is left in place, so the split options win.
  * - The 2.x Cloud scanner keeps blc_settings, a JSON string (app/options/settings/
  *   class-model.php). Its schedule is there; its ignored links and exclusions live
- *   with the cloud service, not on this site. BLC deletes blc_settings when it is
- *   deactivated.
+ *   with the cloud service, not on this site.
+ * - Deactivating it keeps all of this. Only its uninstall (uninstall.php) removes its
+ *   options and tables, as of 2.4.14.1; the deactivation hook that would delete
+ *   blc_settings is commented out in app/options/settings/class-controller.php.
  * - Dismissed links ("Dismiss") and links marked "Not broken" are flags on
  *   {prefix}blc_links (dismissed, false_positive; legacy/includes/admin/db-schema.php).
+ *   Both undo themselves: blcLink::status_changed() (legacy/includes/links.php) clears
+ *   dismissed when a link's result changes, and false_positive when a new result is
+ *   still broken or the link works again. Link Sentinel's dismissed flag is permanent
+ *   (a dismissed link is not checked until someone restores it), so only dismissed
+ *   links are offered, unticked, and "Not broken" links are left to be checked here.
  *
  * Everything here only reads those options and tables. The mapping is done by pure
  * functions (decode, merge_local, map_*, plan, settings_input) so it can be tested
- * without a Broken Link Checker install.
+ * without a Broken Link Checker install; site_plan() adds the linksentinel_blc_import_plan
+ * filter on top.
  *
  * @package LinkSentinel
  */
@@ -107,24 +115,32 @@ class LinkSentinel_Import_BLC {
 	/**
 	 * Exclusion list → Link Sentinel rules.
 	 *
-	 * Broken Link Checker skips a URL that contains any listed word anywhere
-	 * (case-insensitive). Link Sentinel matches a domain (with its subdomains) or a
-	 * URL prefix, so only entries that name a host or a URL carry over:
-	 * "example.com" and "*.example.com" become domain rules, "https://example.com/x"
-	 * stays a prefix, "example.com/x" becomes the http:// and https:// prefixes.
-	 * Plain words ("youtube", "/go/", "?ref=") have no equivalent.
+	 * Broken Link Checker skips a URL that contains any listed entry anywhere, as
+	 * literal text (preg_quote()d, case-insensitive; legacy/core/core.php
+	 * build_exclusion_regex()). Link Sentinel matches a domain (with its subdomains)
+	 * or a URL prefix, so only entries that name a host or a URL carry over:
+	 * "example.com" becomes a domain rule, "https://example.com/x" stays a prefix,
+	 * "example.com/x" becomes the http:// and https:// prefixes. Plain words
+	 * ("youtube", "/go/", "?ref=") have no equivalent. Entries with "*" are reported
+	 * apart: "*" was not a wildcard there, so "*.example.com" excluded nothing, and
+	 * turning it into a rule would start excluding links it used to check.
 	 *
-	 * @return array{rules: string[], skipped: string[]}
+	 * @return array{rules: string[], skipped: string[], wildcards: string[]}
 	 */
 	public static function map_exclusions( $list ) {
-		$rules   = array();
-		$skipped = array();
+		$rules     = array();
+		$skipped   = array();
+		$wildcards = array();
 		foreach ( (array) $list as $entry ) {
 			if ( ! is_scalar( $entry ) ) {
 				continue;
 			}
 			$entry = trim( sanitize_text_field( (string) $entry ) );
 			if ( '' === $entry ) {
+				continue;
+			}
+			if ( false !== strpos( $entry, '*' ) ) {
+				$wildcards[] = $entry;
 				continue;
 			}
 			$value = strtolower( $entry );
@@ -137,7 +153,7 @@ class LinkSentinel_Import_BLC {
 					$rules[] = $value;
 					continue;
 				}
-			} elseif ( preg_match( '#^(?:\*\.|\.)?([^/:?\#\s]+)(?::\d+)?/?$#', $value, $m ) && self::is_host( $m[1] ) ) {
+			} elseif ( preg_match( '#^\.?([^/:?\#\s]+)(?::\d+)?/?$#', $value, $m ) && self::is_host( $m[1] ) ) {
 				$rules[] = $m[1];
 				continue;
 			} elseif ( preg_match( '#^([^/:?\#\s]+)(?::\d+)?(/.*)$#', $value, $m ) && self::is_host( $m[1] ) ) {
@@ -148,8 +164,9 @@ class LinkSentinel_Import_BLC {
 			$skipped[] = $entry;
 		}
 		return array(
-			'rules'   => array_values( array_unique( $rules ) ),
-			'skipped' => array_values( array_unique( $skipped ) ),
+			'rules'     => array_values( array_unique( $rules ) ),
+			'skipped'   => array_values( array_unique( $skipped ) ),
+			'wildcards' => array_values( array_unique( $wildcards ) ),
 		);
 	}
 
@@ -168,7 +185,9 @@ class LinkSentinel_Import_BLC {
 	 * @param string[] $module_ids   Active module ids.
 	 * @param array    $public_types name => label, the types the Settings screen offers.
 	 * @param string[] $all_types    Every registered post type name.
-	 * @return array{post_types: string[], comments: bool, skipped: string[]}
+	 * @return array{post_types: string[], comments: bool, skipped: string[]} Skipped lines for
+	 *         container modules are keyed by module id, so an extension that does scan them
+	 *         (Pro: custom fields) can drop them through the linksentinel_blc_import_plan filter.
 	 */
 	public static function map_content( array $module_ids, array $public_types, array $all_types ) {
 		$types   = array();
@@ -188,7 +207,7 @@ class LinkSentinel_Import_BLC {
 		);
 		foreach ( $containers as $id => $reason ) {
 			if ( in_array( $id, $module_ids, true ) ) {
-				$skipped[] = $reason;
+				$skipped[ $id ] = $reason;
 			}
 		}
 		return array(
@@ -213,27 +232,32 @@ class LinkSentinel_Import_BLC {
 	}
 
 	/**
-	 * The local checker runs hourly through WP-Cron (run_via_cron) and fetches each link
-	 * again after check_threshold hours. Link Sentinel's nearest match is a daily scan
-	 * (weekly for thresholds of a week or more) that re-fetches after the same number of
-	 * hours. Without the cron worker, Broken Link Checker only checked while an admin
-	 * page was open: manual scans here.
+	 * The local checker fetches each link again after check_threshold hours, which maps
+	 * to Link Sentinel's re-check interval. Its background worker (run_via_cron) is on
+	 * out of the box, so leaving it on is not a choice about scan frequency: the
+	 * schedule stays null (keep Link Sentinel's own). Only when it was turned off, and
+	 * Broken Link Checker checked just while an admin page was open, does that become
+	 * manual scans here.
 	 *
-	 * @return array{schedule: string, recheck_hours: int}
+	 * @return array{schedule: string|null, recheck_hours: int} schedule null: no choice to import.
 	 */
 	public static function map_local_schedule( array $local ) {
 		$hours    = isset( $local['check_threshold'] ) ? (int) $local['check_threshold'] : 72;
 		$hours    = $hours > 0 ? $hours : 72;
 		$via_cron = ! array_key_exists( 'run_via_cron', $local ) || ! empty( $local['run_via_cron'] );
-		if ( ! $via_cron ) {
-			$schedule = 'never';
-		} else {
-			$schedule = $hours >= 168 ? 'weekly' : 'daily';
-		}
 		return array(
-			'schedule'      => $schedule,
+			'schedule'      => $via_cron ? null : 'never',
 			'recheck_hours' => max( 1, min( 720, $hours ) ),
 		);
+	}
+
+	/**
+	 * Scans per week for a schedule name, to tell whether a change scans more often.
+	 * WP-Cron's own names; anything unknown counts as manual.
+	 */
+	public static function scans_per_week( $schedule ) {
+		$per_week = array( 'hourly' => 168, 'twicedaily' => 14, 'daily' => 7, 'weekly' => 1 );
+		return isset( $per_week[ $schedule ] ) ? $per_week[ $schedule ] : 0;
 	}
 
 	/**
@@ -264,7 +288,9 @@ class LinkSentinel_Import_BLC {
 	 * @param array $source  local (array|null), cloud (array|null), dismissed (int), not_broken (int).
 	 * @param array $current Link Sentinel settings as stored now (LinkSentinel_Settings::all()).
 	 * @param array $env     post_types (name => label), all_types (names), schedules (value => label).
-	 * @return array{mode: string, items: array, skipped: string[]}
+	 * @return array{mode: string, has_local: bool, items: array, skipped: string[]} Each item has
+	 *         label, from, to, set (settings-form values) and optionally note (shown under "to")
+	 *         and checked (false: offered but not pre-selected).
 	 */
 	public static function plan( array $source, array $current, array $env ) {
 		$local     = isset( $source['local'] ) && is_array( $source['local'] ) ? $source['local'] : null;
@@ -328,6 +354,10 @@ class LinkSentinel_Import_BLC {
 				/* translators: %s: an exclusion-list entry */
 				$skipped[] = sprintf( __( 'Exclusion “%s”: Link Sentinel matches domains and URL prefixes, not words inside a URL.', 'link-sentinel' ), $word );
 			}
+			foreach ( $ex['wildcards'] as $word ) {
+				/* translators: %s: an exclusion-list entry containing "*" */
+				$skipped[] = sprintf( __( 'Exclusion “%s”: Broken Link Checker matched entries as literal text, so the * was not a wildcard and this entry excluded nothing there.', 'link-sentinel' ), $word );
+			}
 
 			// Timeout, only when it was changed from Broken Link Checker's default.
 			if ( isset( $local['timeout'] ) && (int) $local['timeout'] > 0 && self::BLC_DEFAULT_TIMEOUT !== (int) $local['timeout'] ) {
@@ -381,49 +411,77 @@ class LinkSentinel_Import_BLC {
 			$sched = self::map_local_schedule( $local );
 			if ( 'never' === $sched['schedule'] ) {
 				$skipped[] = __( 'Checking only while the dashboard is open: Link Sentinel has no such mode, so automatic scans are set to manual.', 'link-sentinel' );
+			} else {
+				$sched['schedule'] = (string) $current['schedule'];
+				/* translators: %s: Link Sentinel's current automatic scan schedule, such as Weekly */
+				$skipped[] = sprintf( __( 'Checking in the background around the clock: Link Sentinel keeps its own automatic scan schedule (%s), which you can change below.', 'link-sentinel' ), isset( $schedules[ $current['schedule'] ] ) ? $schedules[ $current['schedule'] ] : (string) $current['schedule'] );
 			}
 		}
 		if ( $sched && isset( $schedules[ $sched['schedule'] ] ) && ( $sched['schedule'] !== $current['schedule'] || (int) $sched['recheck_hours'] !== (int) $current['recheck_hours'] ) ) {
-			$items['schedule'] = array(
-				'label' => __( 'Automatic scan', 'link-sentinel' ),
-				'from'  => self::describe_schedule( (string) $current['schedule'], (int) $current['recheck_hours'], $schedules ),
-				'to'    => self::describe_schedule( $sched['schedule'], (int) $sched['recheck_hours'], $schedules ),
-				'set'   => array( 'schedule' => $sched['schedule'], 'recheck_hours' => (int) $sched['recheck_hours'] ),
+			// The email report goes out after every scheduled scan that finds broken links,
+			// so more frequent scans mean more email: never pre-select that while it is on.
+			$email_on   = ! empty( $current['notify_email'] ) || ! empty( $items['email']['set']['notify_email'] );
+			$more_often = self::scans_per_week( $sched['schedule'] ) > self::scans_per_week( (string) $current['schedule'] );
+			$item       = array(
+				'label'   => __( 'Automatic scan', 'link-sentinel' ),
+				'from'    => self::describe_schedule( (string) $current['schedule'], (int) $current['recheck_hours'], $schedules ),
+				'to'      => self::describe_schedule( $sched['schedule'], (int) $sched['recheck_hours'], $schedules ),
+				'set'     => array( 'schedule' => $sched['schedule'], 'recheck_hours' => (int) $sched['recheck_hours'] ),
+				'checked' => ! ( $more_often && $email_on ),
 			);
+			if ( $email_on && 'never' !== $sched['schedule'] && $sched['schedule'] !== $current['schedule'] ) {
+				$item['note'] = __( 'The email report follows scans: it is sent after every scheduled scan that finds broken links.', 'link-sentinel' );
+			}
+			$items['schedule'] = $item;
 		}
 
-		// Dismissed links.
+		// Dismissed links. Link Sentinel's flag does not undo itself like Broken Link
+		// Checker's does, so the item starts unticked.
 		$dismissed  = isset( $source['dismissed'] ) ? (int) $source['dismissed'] : 0;
 		$not_broken = isset( $source['not_broken'] ) ? (int) $source['not_broken'] : 0;
-		if ( $dismissed + $not_broken > 0 ) {
-			$parts = array();
-			if ( $dismissed ) {
-				/* translators: %d: number of links */
-				$parts[] = sprintf( _n( '%d dismissed link', '%d dismissed links', $dismissed, 'link-sentinel' ), $dismissed );
-			}
-			if ( $not_broken ) {
-				/* translators: %d: number of links */
-				$parts[] = sprintf( _n( '%d link marked “Not broken”', '%d links marked “Not broken”', $not_broken, 'link-sentinel' ), $not_broken );
-			}
+		if ( $dismissed > 0 ) {
+			/* translators: %d: number of links */
+			$count              = sprintf( _n( '%d dismissed link', '%d dismissed links', $dismissed, 'link-sentinel' ), $dismissed );
 			$items['dismissed'] = array(
-				'label' => __( 'Dismissed links', 'link-sentinel' ),
-				'from'  => '',
-				/* translators: %s: e.g. "12 dismissed links, 3 links marked Not broken" */
-				'to'    => sprintf( __( '%s, listed under Dismissed and no longer checked', 'link-sentinel' ), implode( ', ', $parts ) ),
-				'set'   => array(),
+				'label'   => __( 'Dismissed links', 'link-sentinel' ),
+				'from'    => '',
+				/* translators: %s: e.g. "12 dismissed links" */
+				'to'      => sprintf( __( '%s, listed under Dismissed', 'link-sentinel' ), $count ),
+				'note'    => __( 'Broken Link Checker showed these links again when their status changed; Link Sentinel will not check them again until you restore them.', 'link-sentinel' ),
+				'set'     => array(),
+				'checked' => false,
 			);
-			if ( $dismissed + $not_broken > self::MAX_DISMISSED ) {
+			if ( $dismissed > self::MAX_DISMISSED ) {
 				/* translators: %s: maximum number of links */
 				$skipped[] = sprintf( __( 'Dismissed links beyond the first %s.', 'link-sentinel' ), number_format_i18n( self::MAX_DISMISSED ) );
 			}
+		}
+		if ( $not_broken > 0 ) {
+			/* translators: %d: number of links */
+			$skipped[] = sprintf( _n( '%d link marked “Not broken”: Broken Link Checker kept checking it and flagged it again when its result changed. Link Sentinel checks it like any other link.', '%d links marked “Not broken”: Broken Link Checker kept checking them and flagged them again when their result changed. Link Sentinel checks them like any other link.', $not_broken, 'link-sentinel' ), $not_broken );
 		}
 
 		return array(
 			'mode'      => $cloud_on ? 'cloud' : 'local',
 			'has_local' => null !== $local,
 			'items'     => $items,
-			'skipped'   => array_values( array_unique( $skipped ) ),
+			'skipped'   => array_unique( $skipped ),
 		);
+	}
+
+	/**
+	 * The plan for this site, as the Settings screen shows it and run() applies it.
+	 *
+	 * Filter linksentinel_blc_import_plan( $plan, $source, $current, $env ) lets an
+	 * extension add items or drop "Not imported" lines for things it handles.
+	 *
+	 * @param array $current Link Sentinel settings as stored now.
+	 */
+	public static function site_plan( array $current ) {
+		$source = self::source();
+		$env    = self::env();
+		$plan   = apply_filters( 'linksentinel_blc_import_plan', self::plan( $source, $current, $env ), $source, $current, $env );
+		return is_array( $plan ) && isset( $plan['items'], $plan['skipped'] ) ? $plan : self::plan( $source, $current, $env );
 	}
 
 	/**
@@ -566,14 +624,14 @@ class LinkSentinel_Import_BLC {
 		return $out;
 	}
 
-	/** @return string[] Raw URLs of dismissed and "Not broken" links. */
+	/** @return string[] Raw URLs of dismissed links ("Not broken" ones are not imported; see the class comment). */
 	private static function dismissed_raw_urls() {
 		global $wpdb;
 		if ( ! self::has_links_table() ) {
 			return array();
 		}
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- see has_links_table()
-		$urls = $wpdb->get_col( $wpdb->prepare( "SELECT url FROM {$wpdb->prefix}blc_links WHERE dismissed = 1 OR false_positive = 1 ORDER BY link_id ASC LIMIT %d", self::MAX_DISMISSED ) );
+		$urls = $wpdb->get_col( $wpdb->prepare( "SELECT url FROM {$wpdb->prefix}blc_links WHERE dismissed = 1 ORDER BY link_id ASC LIMIT %d", self::MAX_DISMISSED ) );
 		return is_array( $urls ) ? $urls : array();
 	}
 
@@ -588,9 +646,18 @@ class LinkSentinel_Import_BLC {
 	 */
 	public static function run( array $selected ) {
 		$current  = LinkSentinel_Settings::all();
-		$plan     = self::plan( self::source(), $current, self::env() );
+		$plan     = self::site_plan( $current );
 		$selected = array_values( array_intersect( array_keys( $plan['items'] ), $selected ) );
 		$settings = array_values( array_diff( $selected, array( 'dismissed' ) ) );
+
+		// Recorded before anything changes, so a second submission that arrives while this
+		// one is still writing finds it and stops (see handle()).
+		$record = array(
+			'time'      => time(),
+			'imported'  => $selected,
+			'dismissed' => 0,
+		);
+		update_option( self::OPTION, $record, false );
 
 		if ( $settings ) {
 			// Save through the sanitize callback the Settings form uses (registering it is idempotent).
@@ -599,24 +666,15 @@ class LinkSentinel_Import_BLC {
 			LinkSentinel_Settings::flush();
 		}
 
-		$dismissed = 0;
 		if ( in_array( 'dismissed', $selected, true ) ) {
-			$urls = self::dismissable_urls( self::dismissed_raw_urls(), home_url( '/' ), LinkSentinel_Settings::exclusions() );
-			foreach ( $urls as $url ) {
-				$id = LinkSentinel_DB::upsert_link( $url, LinkSentinel_Extractor::is_internal( $url ) );
-				if ( $id ) {
-					LinkSentinel_DB::set_dismissed( $id, true );
-					$dismissed++;
-				}
+			$links = array();
+			foreach ( self::dismissable_urls( self::dismissed_raw_urls(), home_url( '/' ), LinkSentinel_Settings::exclusions() ) as $url ) {
+				$links[ $url ] = LinkSentinel_Extractor::is_internal( $url );
 			}
+			$record['dismissed'] = LinkSentinel_DB::dismiss_urls( $links );
+			update_option( self::OPTION, $record, false );
 		}
 
-		$record = array(
-			'time'      => time(),
-			'imported'  => $selected,
-			'dismissed' => $dismissed,
-		);
-		update_option( self::OPTION, $record, false );
 		return $record;
 	}
 
@@ -626,12 +684,19 @@ class LinkSentinel_Import_BLC {
 			wp_die( esc_html__( 'Sorry, you are not allowed to do that.', 'link-sentinel' ), '', array( 'response' => 403 ) );
 		}
 		check_admin_referer( self::ACTION );
+		$done = add_query_arg( array( 'page' => LinkSentinel_Admin::PAGE . '-settings', 'lsn-blc' => 'done' ), admin_url( 'admin.php' ) );
+		// Already imported or declined: a resubmitted form (Back button, a tab left open, a
+		// double click) must not apply Broken Link Checker's values over later changes.
+		if ( false !== get_option( self::OPTION, false ) ) {
+			wp_safe_redirect( $done );
+			exit;
+		}
 		$selected = array();
 		if ( empty( $_POST['lsn_blc_skip'] ) && isset( $_POST['lsn_blc'] ) ) {
 			$selected = array_map( 'sanitize_key', (array) wp_unslash( $_POST['lsn_blc'] ) );
 		}
 		self::run( $selected );
-		wp_safe_redirect( add_query_arg( array( 'page' => LinkSentinel_Admin::PAGE . '-settings', 'lsn-blc' => 'done' ), admin_url( 'admin.php' ) ) );
+		wp_safe_redirect( $done );
 		exit;
 	}
 
@@ -648,7 +713,7 @@ class LinkSentinel_Import_BLC {
 		if ( $record || ! self::detected() ) {
 			return;
 		}
-		$plan  = self::plan( self::source(), LinkSentinel_Settings::all(), self::env() );
+		$plan  = self::site_plan( LinkSentinel_Settings::all() );
 		$items = $plan['items'];
 		?>
 		<div class="lsn-import">
@@ -684,10 +749,15 @@ class LinkSentinel_Import_BLC {
 							<tbody>
 								<?php foreach ( $items as $key => $item ) : ?>
 									<tr>
-										<th scope="row" class="check-column"><input type="checkbox" id="lsn-blc-<?php echo esc_attr( $key ); ?>" name="lsn_blc[]" value="<?php echo esc_attr( $key ); ?>" checked></th>
+										<th scope="row" class="check-column"><input type="checkbox" id="lsn-blc-<?php echo esc_attr( $key ); ?>" name="lsn_blc[]" value="<?php echo esc_attr( $key ); ?>" <?php checked( ! isset( $item['checked'] ) || $item['checked'] ); ?>></th>
 										<td><label for="lsn-blc-<?php echo esc_attr( $key ); ?>"><strong><?php echo esc_html( $item['label'] ); ?></strong></label></td>
 										<td><?php echo esc_html( $item['from'] ); ?></td>
-										<td class="lsn-import-to"><?php echo esc_html( $item['to'] ); ?></td>
+										<td class="lsn-import-to">
+											<?php echo esc_html( $item['to'] ); ?>
+											<?php if ( ! empty( $item['note'] ) ) : ?>
+												<br><span class="description"><?php echo esc_html( $item['note'] ); ?></span>
+											<?php endif; ?>
+										</td>
 									</tr>
 								<?php endforeach; ?>
 							</tbody>

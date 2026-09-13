@@ -119,6 +119,22 @@ foreach ( array( 'https://example.com/meta-acf-new', 'https://example.com/meta-s
 	}
 }
 
+// ---- Import from Broken Link Checker: custom fields ----------------------------------
+$blc_env  = array( 'post_types' => array( 'post' => 'Posts', 'page' => 'Pages' ), 'all_types' => array( 'post', 'page' ), 'schedules' => LinkSentinel_Settings::schedules() );
+$blc_src  = array( 'local' => array( 'active_modules' => array( 'post', 'page', 'custom_field', 'acf_field' ) ), 'cloud' => null );
+$blc_cur  = array_merge( LinkSentinel_Settings::defaults(), array( 'scan_meta' => false, 'scan_comments' => true ) );
+$blc_free = LinkSentinel_Import_BLC::plan( $blc_src, $blc_cur, $blc_env );
+ok( isset( $blc_free['skipped']['custom_field'], $blc_free['skipped']['acf_field'] ) && ! isset( $blc_free['items']['scan_meta'] ), 'pro blc import: the free mapping lists custom fields as not scanned by the free plugin' );
+$blc_plan = apply_filters( 'linksentinel_blc_import_plan', $blc_free, $blc_src, $blc_cur, $blc_env );
+ok( isset( $blc_plan['items']['scan_meta'] ) && ! preg_grep( '/free plugin/', $blc_plan['skipped'] ), 'pro blc import: custom-field and ACF modules become a custom-field scanning item, and the "free plugin" lines go' );
+eq( array_slice( array_keys( $blc_plan['items'] ), 0, 2 ), array( 'content', 'scan_meta' ), 'pro blc import: the item sits next to the other content rows' );
+$blc_saved = LinkSentinel_Settings::sanitize( LinkSentinel_Import_BLC::settings_input( $blc_cur, $blc_plan['items'], array( 'scan_meta' ) ) );
+eq( $blc_saved['scan_meta'], true, 'pro blc import: the item turns custom-field scanning on through sanitize' );
+$blc_on = apply_filters( 'linksentinel_blc_import_plan', LinkSentinel_Import_BLC::plan( $blc_src, $blc_saved, $blc_env ), $blc_src, $blc_saved, $blc_env );
+ok( ! isset( $blc_on['items']['scan_meta'] ) && ! preg_grep( '/free plugin/', $blc_on['skipped'] ), 'pro blc import: already scanning custom fields, no item and no "free plugin" lines' );
+$blc_none = apply_filters( 'linksentinel_blc_import_plan', LinkSentinel_Import_BLC::plan( array( 'local' => array( 'active_modules' => array( 'post' ) ) ), $blc_cur, $blc_env ), array( 'local' => array( 'active_modules' => array( 'post' ) ) ), $blc_cur, $blc_env );
+ok( ! isset( $blc_none['items']['scan_meta'] ), 'pro blc import: no custom-field module, no item' );
+
 // ---- Export ------------------------------------------------------------------------
 $xl = LinkSentinel_DB::upsert_link( 'https://csv.example.com/broken-1', 0 );
 LinkSentinel_DB::save_result( $xl, array( 'status' => 'broken', 'http_code' => 404 ) );
