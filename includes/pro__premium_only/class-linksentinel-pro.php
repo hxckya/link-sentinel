@@ -18,7 +18,7 @@ require_once __DIR__ . '/class-linksentinel-import-qppr.php';
 
 class LinkSentinel_Pro {
 
-	const DB_VERSION = '1';
+	const DB_VERSION = '2'; // 2: linksentinel_redirects.import_batch
 
 	public static function init() {
 		add_filter( 'linksentinel_schedules', array( __CLASS__, 'schedules' ) );

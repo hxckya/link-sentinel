@@ -24,10 +24,13 @@ agencies and larger sites:
   means a page that moved; one click sends visitors and search engines from the
   old address to the new one. Rules apply only to addresses that would 404, so
   they can never shadow a page that exists. Hit counts, a Redirects page.
-  Sites that used the closed Quick Page/Post Redirect Plugin get an importer
-  for its Quick and per-page redirects: a dry run first (conflicts, pages that
-  still exist, what cannot be mapped and why), then import; its data is left
-  untouched.
+  Quick Page/Post Redirect Plugin was closed on WordPress.org on 14 April 2026
+  and gets no updates; sites that used it get an importer for its Quick and per-page
+  redirects: a dry run first, then import. Only redirects that were working,
+  point to this site and have no rule yet are ticked by default; redirects to
+  other domains, redirects that were never live (unpublished posts, or QPPR's
+  "turn off all redirects"), pages that still exist and conflicts are separate
+  opt-ins. An import can be removed again; QPPR's data is left untouched.
 - **Custom-field scanning.** ACF fields, Elementor and other page-builder data,
   SEO plugin fields — serialized and JSON values included — and the same
   in-place fixes write back through the structure without corrupting it.
