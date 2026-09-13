@@ -60,6 +60,9 @@ LinkSentinel_Redirects::delete( (int) LinkSentinel_Redirects::for_url( $home . '
 LinkSentinel_DB::delete_link( $lid );
 LinkSentinel_DB::delete_link( $ext );
 
+// ---- Import from Quick Page/Post Redirect ----------------------------------------
+require __DIR__ . '/pro-qppr.php';
+
 // ---- Custom fields -------------------------------------------------------------
 $set( array( 'scan_meta' => true ) );
 $mp = wp_insert_post( array( 'post_title' => 'Meta post', 'post_status' => 'publish', 'post_content' => '<p>no links here</p>' ) );

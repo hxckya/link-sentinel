@@ -14,6 +14,7 @@ require_once __DIR__ . '/class-linksentinel-redirects.php';
 require_once __DIR__ . '/class-linksentinel-export.php';
 require_once __DIR__ . '/class-linksentinel-meta.php';
 require_once __DIR__ . '/class-linksentinel-webhook.php';
+require_once __DIR__ . '/class-linksentinel-import-qppr.php';
 
 class LinkSentinel_Pro {
 
@@ -29,6 +30,7 @@ class LinkSentinel_Pro {
 		LinkSentinel_Export::init();
 		LinkSentinel_Meta::init();
 		LinkSentinel_Webhook::init();
+		LinkSentinel_Import_QPPR::init();
 
 		if ( get_option( 'linksentinel_pro_db_version' ) !== self::DB_VERSION ) {
 			LinkSentinel_Redirects::install();

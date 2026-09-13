@@ -213,6 +213,12 @@ class LinkSentinel_Redirects {
 	}
 
 	public static function render() {
+		$view = isset( $_GET['view'] ) ? sanitize_key( wp_unslash( $_GET['view'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- selects a screen, changes nothing
+		if ( '' !== $view && has_action( 'linksentinel_redirects_view_' . $view ) ) {
+			/** Fires instead of the rules list for ?view=<name>; importers render their screens here. */
+			do_action( 'linksentinel_redirects_view_' . $view );
+			return;
+		}
 		$rows = self::all();
 		$msg  = isset( $_GET['lsn_msg'] ) ? sanitize_key( wp_unslash( $_GET['lsn_msg'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only
 		?>
@@ -226,6 +232,10 @@ class LinkSentinel_Redirects {
 				<div class="notice notice-error is-dismissible"><p><?php esc_html_e( 'That redirect could not be saved. Check both addresses.', 'link-sentinel' ); ?></p></div>
 			<?php endif; ?>
 			<p><?php esc_html_e( 'These rules apply only to addresses that would otherwise show a 404, so they can never hide an existing page. Create them from the Broken Links list (“Redirect…”) or here.', 'link-sentinel' ); ?></p>
+			<?php
+			/** Fires below the Redirects page intro; importers put their offers here. */
+			do_action( 'linksentinel_redirects_page_top' );
+			?>
 
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="linksentinel_redirect_add">

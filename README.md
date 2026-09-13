@@ -24,6 +24,10 @@ agencies and larger sites:
   means a page that moved; one click sends visitors and search engines from the
   old address to the new one. Rules apply only to addresses that would 404, so
   they can never shadow a page that exists. Hit counts, a Redirects page.
+  Sites that used the closed Quick Page/Post Redirect Plugin get an importer
+  for its Quick and per-page redirects: a dry run first (conflicts, pages that
+  still exist, what cannot be mapped and why), then import; its data is left
+  untouched.
 - **Custom-field scanning.** ACF fields, Elementor and other page-builder data,
   SEO plugin fields — serialized and JSON values included — and the same
   in-place fixes write back through the structure without corrupting it.
