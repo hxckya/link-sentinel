@@ -17,6 +17,7 @@ class LinkSentinel_Admin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'wp_dashboard_setup', array( __CLASS__, 'dashboard_widget' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( LINKSENTINEL_FILE ), array( __CLASS__, 'action_links' ) );
+		LinkSentinel_Import_BLC::init();
 	}
 
 	public static function menu() {
@@ -52,6 +53,7 @@ class LinkSentinel_Admin {
 					'done'       => __( 'Scan finished. Reloading…', 'link-sentinel' ),
 					'cancel'     => __( 'Cancel', 'link-sentinel' ),
 					'save'       => __( 'Save', 'link-sentinel' ),
+					'redirectTo' => __( 'Send visitors of this dead URL to:', 'link-sentinel' ),
 				),
 			)
 		);
@@ -84,6 +86,7 @@ class LinkSentinel_Admin {
 						<button type="button" class="button button-primary" id="lsn-start"><?php esc_html_e( 'Scan now', 'link-sentinel' ); ?></button>
 						<button type="button" class="button" id="lsn-start-full" title="<?php esc_attr_e( 'Re-fetch every link, even ones checked recently', 'link-sentinel' ); ?>"><?php esc_html_e( 'Full re-check', 'link-sentinel' ); ?></button>
 						<button type="button" class="button" id="lsn-stop"><?php esc_html_e( 'Stop', 'link-sentinel' ); ?></button>
+						<?php do_action( 'linksentinel_links_toolbar', $table->view ); ?>
 					</div>
 				</div>
 				<div class="lsn-progress"><div class="lsn-progress-bar" id="lsn-progress-bar" style="width:0"></div></div>
@@ -139,6 +142,7 @@ class LinkSentinel_Admin {
 		?>
 		<div class="wrap lsn-wrap">
 			<h1><?php esc_html_e( 'Link Sentinel Settings', 'link-sentinel' ); ?></h1>
+			<?php LinkSentinel_Import_BLC::render(); ?>
 			<form method="post" action="options.php">
 				<?php settings_fields( 'linksentinel' ); ?>
 				<table class="form-table" role="presentation">
@@ -161,9 +165,9 @@ class LinkSentinel_Admin {
 						<th scope="row"><label for="lsn-schedule"><?php esc_html_e( 'Automatic scan', 'link-sentinel' ); ?></label></th>
 						<td>
 							<select id="lsn-schedule" name="<?php echo esc_attr( LinkSentinel_Settings::OPTION ); ?>[schedule]">
-								<option value="weekly" <?php selected( $s['schedule'], 'weekly' ); ?>><?php esc_html_e( 'Weekly', 'link-sentinel' ); ?></option>
-								<option value="daily" <?php selected( $s['schedule'], 'daily' ); ?>><?php esc_html_e( 'Daily', 'link-sentinel' ); ?></option>
-								<option value="never" <?php selected( $s['schedule'], 'never' ); ?>><?php esc_html_e( 'Never (manual only)', 'link-sentinel' ); ?></option>
+								<?php foreach ( LinkSentinel_Settings::schedules() as $value => $label ) : ?>
+									<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $s['schedule'], $value ); ?>><?php echo esc_html( $label ); ?></option>
+								<?php endforeach; ?>
 							</select>
 							<p class="description"><?php esc_html_e( 'Runs through WP-Cron, in small steps, while your site receives visits.', 'link-sentinel' ); ?></p>
 						</td>
@@ -204,9 +208,30 @@ class LinkSentinel_Admin {
 						<th scope="row"><label for="lsn-ua"><?php esc_html_e( 'User agent', 'link-sentinel' ); ?></label></th>
 						<td><input type="text" id="lsn-ua" name="<?php echo esc_attr( LinkSentinel_Settings::OPTION ); ?>[user_agent]" value="<?php echo esc_attr( $s['user_agent'] ); ?>" class="large-text code"></td>
 					</tr>
+					<?php do_action( 'linksentinel_settings_rows', $s ); ?>
 				</table>
 				<?php submit_button(); ?>
 			</form>
+			<?php self::render_pro_box(); ?>
+		</div>
+		<?php
+	}
+
+	/** What Pro adds, shown to free installs only. */
+	public static function render_pro_box() {
+		if ( LinkSentinel_License::can_use_pro() ) {
+			return;
+		}
+		?>
+		<div class="lsn-pro-box">
+			<h2><?php esc_html_e( 'Link Sentinel Pro', 'link-sentinel' ); ?></h2>
+			<p><?php esc_html_e( 'The free plugin is complete. Pro adds what agencies and larger sites asked for:', 'link-sentinel' ); ?></p>
+			<ul>
+				<?php foreach ( LinkSentinel_License::features() as $f ) : ?>
+					<li><?php echo esc_html( $f ); ?></li>
+				<?php endforeach; ?>
+			</ul>
+			<a class="button button-primary" href="<?php echo esc_url( LinkSentinel_License::upgrade_url() ); ?>"><?php esc_html_e( 'See Pro', 'link-sentinel' ); ?></a>
 		</div>
 		<?php
 	}

@@ -34,6 +34,10 @@ Every edit goes through the normal WordPress save, so revisions keep the previou
 
 **Free means free.** Everything above is in this plugin. There is no cloud tier hiding the results.
 
+
+= Link Sentinel Pro =
+
+The free plugin is complete and stays that way. Pro adds what agencies and larger sites asked for: redirects for dead URLs on your own site (visitors and search engines land on a page that works instead of a 404), custom-field scanning (ACF, Elementor and other page-builder data, SEO plugin fields, all fixable in place), Slack, Discord and webhook alerts, CSV export of any view, and hourly or twice-daily scans.
 == Installation ==
 
 1. Install and activate the plugin.
@@ -58,6 +62,19 @@ A timeout, DNS failure, TLS problem or 5xx. These are often temporary, so a link
 = Which content is scanned? =
 
 Post types you select (posts and pages by default), custom links in navigation menus, block widgets, category/tag/taxonomy descriptions, and approved comments if enabled. Links inside `<a>`, `<img>`, `srcset`, `<iframe>`, `<video>`, `<audio>`, `<source>` and `<embed>` are found.
+
+= Can I import my settings from the Broken Link Checker plugin by WPMU DEV? =
+
+Yes. While that plugin's settings are still on the site, *Link Sentinel → Settings* offers a one-time import. It first shows what would change, item by item, and you can untick any of them:
+
+* the content and post statuses to scan;
+* the scan and re-check interval: the re-check interval, the schedule of its Cloud scanner if it used one, and manual scans if its background checking was turned off (otherwise your automatic scan schedule stays as it is);
+* exclusion entries that name a domain or URL, as "Never check" rules (plain words, and entries with `*`, which that plugin matched as literal text, are left out);
+* the timeout;
+* the email report, on or off, and its address;
+* dismissed links. That plugin showed a dismissed link again when its status changed; Link Sentinel stops checking a dismissed link until you restore it, so this item starts unticked.
+
+Links marked "Not broken" are not imported; Link Sentinel checks them like any other link. A change that would scan more often while the email report is on also starts unticked, because the report is sent after every scheduled scan that finds broken links. What has no equivalent here is listed and left out. That plugin's own settings and data are only read, never changed. Run the import before you delete that plugin, because deleting it removes its data.
 
 = Does it send my links anywhere? =
 

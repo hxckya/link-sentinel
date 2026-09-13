@@ -80,6 +80,11 @@ class LinkSentinel_Fixer {
 	}
 
 	private static function rewrite_source( $o, $old_raw, $new_url ) {
+		// Extensions that own a source kind (custom fields) answer with a boolean.
+		$handled = apply_filters( 'linksentinel_rewrite_source', null, $o, $old_raw, $new_url );
+		if ( null !== $handled ) {
+			return (bool) $handled;
+		}
 		if ( 'menu' === $o->source_type ) {
 			return (bool) update_post_meta( (int) $o->source_id, '_menu_item_url', esc_url_raw( $new_url ) );
 		}

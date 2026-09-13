@@ -20,6 +20,15 @@ class LinkSentinel_Plugin {
 	}
 
 	private function __construct() {
+		$fs = LinkSentinel_License::fs();
+		if ( $fs ) {
+			$fs->add_action( 'after_uninstall', array( __CLASS__, 'uninstall' ) );
+		}
+		if ( LinkSentinel_License::can_use_pro() ) {
+			require_once LINKSENTINEL_PRO_DIR . 'class-linksentinel-pro.php';
+			LinkSentinel_Pro::init();
+			LinkSentinel_Settings::flush();
+		}
 		add_action( 'linksentinel_tick', array( $this, 'tick' ) );
 		add_action( 'linksentinel_scheduled_scan', array( $this, 'scheduled_scan' ) );
 		add_action( 'rest_api_init', array( 'LinkSentinel_REST', 'register' ) );
@@ -36,6 +45,30 @@ class LinkSentinel_Plugin {
 	public static function activate() {
 		LinkSentinel_DB::install();
 		self::schedule_for( LinkSentinel_Settings::get( 'schedule' ) );
+		if ( ! LinkSentinel_License::fs() ) {
+			// Without Freemius, WordPress needs the uninstall callback recorded at activation.
+			register_uninstall_hook( LINKSENTINEL_FILE, array( __CLASS__, 'uninstall' ) );
+		}
+	}
+
+	/**
+	 * Removes everything the plugin stored: tables, options, cron events.
+	 * Runs from Freemius' after_uninstall hook, or from WordPress directly
+	 * when the SDK is not configured.
+	 */
+	public static function uninstall() {
+		global $wpdb;
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}linksentinel_occurrences" );
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}linksentinel_links" );
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}linksentinel_redirects" );
+		// phpcs:enable
+		foreach ( array( 'linksentinel_settings', 'linksentinel_scan', 'linksentinel_db_version', 'linksentinel_pro_db_version', 'linksentinel_last_notified_scan', 'linksentinel_last_webhook_scan', 'linksentinel_blc_import', 'linksentinel_qppr_import' ) as $option ) {
+			delete_option( $option );
+		}
+		delete_transient( 'linksentinel_lock' );
+		wp_clear_scheduled_hook( 'linksentinel_tick' );
+		wp_clear_scheduled_hook( 'linksentinel_scheduled_scan' );
 	}
 
 	public static function deactivate() {
@@ -75,9 +108,13 @@ class LinkSentinel_Plugin {
 	private static function schedule_for( $schedule ) {
 		$next    = wp_next_scheduled( 'linksentinel_scheduled_scan' );
 		$current = $next ? wp_get_schedule( 'linksentinel_scheduled_scan' ) : null;
-		if ( 'never' === $schedule || ! in_array( $schedule, array( 'daily', 'weekly' ), true ) ) {
+		if ( 'never' === $schedule ) {
 			wp_clear_scheduled_hook( 'linksentinel_scheduled_scan' );
 			return;
+		}
+		// An interval that is no longer offered (a Pro one after the licence lapsed) falls back to daily.
+		if ( ! array_key_exists( $schedule, LinkSentinel_Settings::schedules() ) || ! array_key_exists( $schedule, wp_get_schedules() ) ) {
+			$schedule = 'daily';
 		}
 		if ( $current === $schedule ) {
 			return;

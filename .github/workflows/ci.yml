@@ -28,5 +28,17 @@ jobs:
             $s = LinkSentinel_Scanner::state(); $c = LinkSentinel_DB::counts();
             printf("phase=%s found=%d broken=%d redirect=%d blocked=%d\n", $s["phase"], $s["found"], $c["broken"], $c["redirect"], $c["blocked"]);
             if ($s["phase"] !== "done" || $c["broken"] < 2 || $c["redirect"] < 1) { exit(1); }'
-      - name: Plugin Check
-        run: docker compose -f .docker/docker-compose.yml run --rm -T cli plugin install plugin-check --activate && docker compose -f .docker/docker-compose.yml run --rm -T cli plugin check link-sentinel --exclude-checks=plugin_readme --format=table || true
+      - name: Build free and Pro ZIPs
+        run: |
+          bin/build.sh
+          unzip -l dist/link-sentinel-[0-9]*.zip | grep -q 'vendor/freemius/start.php'
+          unzip -l dist/link-sentinel-premium-*.zip | grep -q 'pro__premium_only/class-linksentinel-pro.php'
+      - name: Free build activates on its own and passes Plugin Check
+        run: |
+          C="docker compose -f .docker/docker-compose.yml run --rm -T cli"
+          $C eval 'exec( "cp -R " . escapeshellarg( WP_PLUGIN_DIR . "/link-sentinel/dist/link-sentinel" ) . " " . escapeshellarg( WP_PLUGIN_DIR . "/link-sentinel-free" ) );'
+          $C plugin deactivate link-sentinel
+          $C plugin activate link-sentinel-free
+          $C plugin install plugin-check --activate
+          $C plugin check link-sentinel-free --slug=link-sentinel --exclude-checks=plugin_readme --format=table | tee /tmp/pc.txt
+          if grep -q "ERROR" /tmp/pc.txt; then echo "Plugin Check reported errors"; exit 1; fi

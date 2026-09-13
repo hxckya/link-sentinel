@@ -12,6 +12,10 @@ class LinkSentinel_DB {
 
 	const DB_VERSION = '1';
 
+	/** Most rows, and most bytes of URL, sent in one dismiss_urls() statement. */
+	const DISMISS_CHUNK_ROWS  = 500;
+	const DISMISS_CHUNK_BYTES = 262144;
+
 	public static function links_table() {
 		global $wpdb;
 		return $wpdb->prefix . 'linksentinel_links';
@@ -75,24 +79,73 @@ class LinkSentinel_DB {
 	/** Insert the URL if new; return its id either way. */
 	public static function upsert_link( $url, $is_internal ) {
 		global $wpdb;
-		$hash  = md5( $url );
-		$id    = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$wpdb->prefix}linksentinel_links WHERE url_hash = %s", $hash ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$row = self::new_link_row( $url, $is_internal );
+		$id  = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$wpdb->prefix}linksentinel_links WHERE url_hash = %s", $row['url_hash'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		if ( $id ) {
 			return (int) $id;
 		}
-		$host = wp_parse_url( $url, PHP_URL_HOST );
-		$wpdb->insert(
-			self::links_table(),
-			array(
-				'url'         => $url,
-				'url_hash'    => $hash,
-				'host'        => $host ? strtolower( $host ) : '',
-				'is_internal' => $is_internal ? 1 : 0,
-				'first_seen'  => current_time( 'mysql', true ),
-			),
-			array( '%s', '%s', '%s', '%d', '%s' )
-		);
+		$wpdb->insert( self::links_table(), $row, array( '%s', '%s', '%s', '%d', '%s' ) );
 		return (int) $wpdb->insert_id;
+	}
+
+	/** Column values for a new links row, in the order upsert_link() and dismiss_urls() write them. */
+	private static function new_link_row( $url, $is_internal ) {
+		$host = wp_parse_url( $url, PHP_URL_HOST );
+		return array(
+			'url'         => $url,
+			'url_hash'    => md5( $url ),
+			'host'        => $host ? strtolower( $host ) : '',
+			'is_internal' => $is_internal ? 1 : 0,
+			'first_seen'  => current_time( 'mysql', true ),
+		);
+	}
+
+	/**
+	 * Store URLs as dismissed, adding the ones not stored yet, in a few statements:
+	 * one multi-row INSERT … ON DUPLICATE KEY UPDATE per chunk (url_hash is unique), so
+	 * a row that exists keeps its status and history and only gains the flag. Safe to
+	 * run again over the same URLs.
+	 *
+	 * @param array $links Normalised URL (LinkSentinel_Extractor::normalize(), as the scanner stores it) => is internal.
+	 * @param int   $rows  Rows per statement.
+	 * @return int URLs written.
+	 */
+	public static function dismiss_urls( array $links, $rows = self::DISMISS_CHUNK_ROWS ) {
+		$rows    = max( 1, (int) $rows );
+		$written = 0;
+		$chunk   = array();
+		$bytes   = 0;
+		foreach ( $links as $url => $is_internal ) {
+			$url = (string) $url;
+			if ( '' === $url ) {
+				continue;
+			}
+			$chunk[] = self::new_link_row( $url, $is_internal );
+			$bytes  += strlen( $url );
+			if ( count( $chunk ) >= $rows || $bytes >= self::DISMISS_CHUNK_BYTES ) {
+				$written += self::insert_dismissed( $chunk );
+				$chunk    = array();
+				$bytes    = 0;
+			}
+		}
+		if ( $chunk ) {
+			$written += self::insert_dismissed( $chunk );
+		}
+		return $written;
+	}
+
+	/** One statement for dismiss_urls(). @return int Rows sent, or 0 when the query failed. */
+	private static function insert_dismissed( array $chunk ) {
+		global $wpdb;
+		$tuples = array();
+		$args   = array();
+		foreach ( $chunk as $row ) {
+			$tuples[] = '(%s, %s, %s, %d, %s, 1)';
+			array_push( $args, $row['url'], $row['url_hash'], $row['host'], $row['is_internal'], $row['first_seen'] );
+		}
+		// The table name is $wpdb->prefix plus a constant; the tuples are literal placeholder groups, one per row in $args.
+		$sql = "INSERT INTO {$wpdb->prefix}linksentinel_links (url, url_hash, host, is_internal, first_seen, dismissed) VALUES " . implode( ', ', $tuples ) . ' ON DUPLICATE KEY UPDATE dismissed = 1';
+		return false === $wpdb->query( $wpdb->prepare( $sql, $args ) ) ? 0 : count( $chunk ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	public static function add_occurrence( $link_id, $source_type, $source_id, $field, $element, $anchor, $raw_url, $scan_id ) {

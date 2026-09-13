@@ -3,16 +3,50 @@ name: Deploy to WordPress.org
 # Runs when a v* tag is pushed, after the plugin has been approved on
 # WordPress.org and the SVN credentials exist as repository secrets
 # (SVN_USERNAME, SVN_PASSWORD). Until then it is skipped, not failed.
+#
+# Run by hand (Actions → Deploy to WordPress.org → Run workflow) to publish an
+# existing tag, or to rehearse one with "dry run" on: trunk, assets and the tag
+# are prepared and `svn status` is printed, but nothing is committed. A dry run
+# needs no secrets; it does need the approved SVN repository to exist.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to publish, e.g. v0.2.0"
+        required: true
+      dry_run:
+        description: "Dry run (no SVN commit)"
+        type: boolean
+        default: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      # A manual run is started from a branch, so the version must come from the input, not github.ref.
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+      - name: Tag, plugin header, version constant and Stable tag agree
+        id: version
+        run: |
+          set -eu
+          v="${TAG#v}"
+          header=$(sed -n 's/^ \* Version: *//p' link-sentinel.php | tr -d '[:space:]')
+          constant=$(sed -n "s/^define( 'LINKSENTINEL_VERSION', '\([^']*\)' );.*/\1/p" link-sentinel.php)
+          stable=$(sed -n 's/^Stable tag: *//p' readme.txt | tr -d '[:space:]')
+          echo "tag=$v header=$header LINKSENTINEL_VERSION=$constant Stable tag=$stable"
+          if [ "$v" != "$header" ] || [ "$v" != "$constant" ] || [ "$v" != "$stable" ]; then
+            echo "::error::Versions disagree. Set the Version header, LINKSENTINEL_VERSION and readme.txt Stable tag to $v before tagging."
+            exit 1
+          fi
+          grep -q "^= $v =" readme.txt || echo "::warning::readme.txt has no changelog entry '= $v ='"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
       - name: Check credentials
         id: creds
         env:
@@ -20,10 +54,15 @@ jobs:
         run: |
           if [ -z "$SVN_USERNAME" ]; then echo "present=false" >> "$GITHUB_OUTPUT"; echo "No SVN_USERNAME secret; skipping deploy."; else echo "present=true" >> "$GITHUB_OUTPUT"; fi
       - name: Deploy plugin and assets
-        if: steps.creds.outputs.present == 'true'
-        uses: 10up/action-wordpress-plugin-deploy@stable
+        if: steps.creds.outputs.present == 'true' || env.DRY_RUN == 'true'
+        # 2.3.0, the commit the action's "stable" branch pointed to on 2026-09-13; pinned because it receives the SVN password.
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2
+        with:
+          dry-run: ${{ env.DRY_RUN }}
         env:
-          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
-          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          # The placeholders only reach a dry run, which never commits.
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME || 'dry-run' }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD || 'dry-run' }}
           SLUG: link-sentinel
           ASSETS_DIR: .wporg-assets
+          VERSION: ${{ steps.version.outputs.version }}
