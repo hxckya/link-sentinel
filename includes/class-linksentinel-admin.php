@@ -17,6 +17,7 @@ class LinkSentinel_Admin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_action( 'wp_dashboard_setup', array( __CLASS__, 'dashboard_widget' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( LINKSENTINEL_FILE ), array( __CLASS__, 'action_links' ) );
+		LinkSentinel_Import_BLC::init();
 	}
 
 	public static function menu() {
@@ -141,6 +142,7 @@ class LinkSentinel_Admin {
 		?>
 		<div class="wrap lsn-wrap">
 			<h1><?php esc_html_e( 'Link Sentinel Settings', 'link-sentinel' ); ?></h1>
+			<?php LinkSentinel_Import_BLC::render(); ?>
 			<form method="post" action="options.php">
 				<?php settings_fields( 'linksentinel' ); ?>
 				<table class="form-table" role="presentation">

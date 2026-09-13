@@ -34,6 +34,7 @@ require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-notifier.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-cli.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-rest.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-admin.php';
+require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-import-blc.php';
 require_once LINKSENTINEL_DIR . 'includes/class-linksentinel-plugin.php';
 
 // Loads the Freemius SDK once a product id is configured; a no-op until then.

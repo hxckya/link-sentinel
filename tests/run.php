@@ -163,6 +163,9 @@ $ref->setValue( null, null );
 delete_option( LinkSentinel_Notifier::OPTION );
 LinkSentinel_DB::delete_link( $bl_id );
 
+// ---- Import from Broken Link Checker ---------------------------------------------
+require __DIR__ . '/import-blc.php';
+
 // ---- Pro (only when the premium files are present and allowed) -------------
 if ( LinkSentinel_License::can_use_pro() ) {
 	require __DIR__ . '/pro.php';

@@ -63,6 +63,10 @@ A timeout, DNS failure, TLS problem or 5xx. These are often temporary, so a link
 
 Post types you select (posts and pages by default), custom links in navigation menus, block widgets, category/tag/taxonomy descriptions, and approved comments if enabled. Links inside `<a>`, `<img>`, `srcset`, `<iframe>`, `<video>`, `<audio>`, `<source>` and `<embed>` are found.
 
+= Can I switch from Broken Link Checker? =
+
+Yes. While Broken Link Checker's settings are still on the site, *Link Sentinel → Settings* offers a one-time import. It first shows what would change: the content and post statuses to scan, the automatic scan interval, "Never check" entries that name a domain or URL, the timeout, the report email address, and the links you dismissed or marked "Not broken". You can untick any of them. What has no equivalent here is listed and left out. Broken Link Checker's own settings and data are only read, never changed. Run the import before you delete Broken Link Checker, because deleting it removes its data.
+
 = Does it send my links anywhere? =
 
 No. Requests go from your server directly to the linked sites, with a user agent you can change under *Settings*.
