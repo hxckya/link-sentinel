@@ -25,7 +25,14 @@ You receive an SVN URL like `https://plugins.svn.wordpress.org/link-sentinel`.
    profile, https://profiles.wordpress.org/me/profile/edit/group/3/?screen=svn-password).
 2. Pushing a `v*` tag then publishes the release and the listing assets
    (`.wporg-assets/` — banners, icon, screenshots) automatically via
-   `.github/workflows/deploy.yml`.
+   `.github/workflows/deploy.yml`. The workflow refuses a tag unless the
+   `Version` header, `LINKSENTINEL_VERSION` and readme `Stable tag` all equal
+   the tag without its `v`.
+3. To rehearse first: Actions → Deploy to WordPress.org → Run workflow, enter an
+   existing tag, keep "Dry run" ticked. The log ends with `svn status` (what
+   would be committed) and "Dry run: Files not committed." It needs no secrets,
+   only the SVN repository that approval creates. Unticked, the same run
+   publishes that tag (for example `v0.1.1` if 0.2.0 has to wait).
 
 ## 4. Paid tier (Freemius) — done 2026-09-11
 Product 39272 in store 19938 (slug `link-sentinel`, paid slug
