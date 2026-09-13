@@ -14,10 +14,11 @@ require_once __DIR__ . '/class-linksentinel-redirects.php';
 require_once __DIR__ . '/class-linksentinel-export.php';
 require_once __DIR__ . '/class-linksentinel-meta.php';
 require_once __DIR__ . '/class-linksentinel-webhook.php';
+require_once __DIR__ . '/class-linksentinel-import-qppr.php';
 
 class LinkSentinel_Pro {
 
-	const DB_VERSION = '1';
+	const DB_VERSION = '2'; // 2: linksentinel_redirects.import_batch
 
 	public static function init() {
 		add_filter( 'linksentinel_schedules', array( __CLASS__, 'schedules' ) );
@@ -29,6 +30,7 @@ class LinkSentinel_Pro {
 		LinkSentinel_Export::init();
 		LinkSentinel_Meta::init();
 		LinkSentinel_Webhook::init();
+		LinkSentinel_Import_QPPR::init();
 
 		if ( get_option( 'linksentinel_pro_db_version' ) !== self::DB_VERSION ) {
 			LinkSentinel_Redirects::install();
